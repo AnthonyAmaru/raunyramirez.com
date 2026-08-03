@@ -125,7 +125,12 @@ input:focus,textarea:focus,select:focus { border-color:var(--terracotta); box-sh
 .library-title { display:flex; align-items:end; justify-content:space-between; border-bottom:1px solid var(--line); padding-bottom:16px; }
 .library-title h2,.library-title h3 { margin:0; font-size:2rem; }
 .library-title small { color:var(--muted); }
-.track-row { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:14px; border-bottom:1px solid var(--line); padding:14px 2px; }
+.library-actions { display:flex; align-items:center; gap:8px; }
+.select-all-control { display:inline-flex; min-height:40px; align-items:center; gap:7px; border:1px solid var(--line); border-radius:10px; padding:0 11px; color:var(--muted); cursor:pointer; font-size:.7rem; font-weight:750; }
+.select-all-control input,.track-select { width:17px; height:17px; margin:0; accent-color:var(--ink); cursor:pointer; }
+.button.danger { border-color:color-mix(in srgb,#b94040 45%,var(--line)); background:transparent; color:#a62f2f; }
+.button:disabled { cursor:not-allowed; opacity:.42; }
+.track-row { display:grid; grid-template-columns:auto auto 1fr auto; align-items:center; gap:14px; border-bottom:1px solid var(--line); padding:14px 2px; }
 .track-row:last-child { border:0; }
 .track-row .track-play { display:grid; width:38px; height:38px; place-items:center; border:0; border-radius:50%; background:var(--terracotta); color:#fff; cursor:pointer; }
 .track-row div { display:grid; min-width:0; }
@@ -217,4 +222,7 @@ body > footer { display:flex; width:min(1180px,calc(100% - 40px)); justify-conte
   .section-heading h1,.section-heading h2 { font-size:3rem; }
   .drawing-heading { padding:18px; }
   .drop-zone { border-radius:13px; }
+  .library-title { align-items:flex-start; gap:16px; }
+  .library-actions { flex-wrap:wrap; justify-content:flex-end; }
+  .library-actions small { width:100%; text-align:right; }
 }

@@ -1,0 +1,478 @@
+const $ = (selector, root = document) => root.querySelector(selector);
+const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+const KEYS = { theme: "rauny_theme", dentistry: "rauny_dentistry_notes", diet: "rauny_diet_log", goals: "rauny_goal_board" };
+const CLOUD_ADMIN_EMAIL = "anthonyamaru93@gmail.com";
+const CLOUD_CONTENT_KEYS = { [KEYS.dentistry]: "dentistry", [KEYS.diet]: "diet", [KEYS.goals]: "goals" };
+let toastTimer;
+let tracks = [];
+let currentTrackId = null;
+let cloudAdminPassword = null;
+let artItems = [];
+let drawingTool = "pen";
+let drawingStrokes = [];
+let drawingRedoStack = [];
+let activeDrawingStroke = null;
+let activeDrawingPointer = null;
+let lastPencilTap = null;
+
+function read(key) {
+  try { return JSON.parse(localStorage.getItem(key)) || []; } catch { return []; }
+}
+
+function write(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
+function escapeHtml(value) { return String(value ?? "").replace(/[&<>\"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[character]); }
+function formatBytes(bytes) { return bytes < 1e6 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1e6).toFixed(1)} MB`; }
+function toast(message) { const node = $("#toast"); node.textContent = message; node.classList.add("visible"); clearTimeout(toastTimer); toastTimer = setTimeout(() => node.classList.remove("visible"), 2600); }
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme === "dark" ? "dark" : "light";
+  $("#theme-toggle").textContent = theme === "dark" ? "☀" : "☾";
+  localStorage.setItem(KEYS.theme, theme);
+}
+
+function updateCloudStatus() {
+  const status = $("#cloud-status");
+  const connected = Boolean(window.musicCloud?.isSignedIn());
+  status.classList.toggle("connected", connected);
+  status.lastChild.textContent = connected ? "Cloud synced" : "Cloud locked";
+}
+
+async function syncCloudList(localKey) {
+  const row = await musicCloud.getContent("rauny", CLOUD_CONTENT_KEYS[localKey]);
+  if (row && Array.isArray(row.value)) write(localKey, row.value);
+  else {
+    const localValue = read(localKey);
+    if (localValue.length) await musicCloud.saveContent("rauny", CLOUD_CONTENT_KEYS[localKey], localValue);
+  }
+}
+
+async function saveCloudList(localKey, value) {
+  write(localKey, value);
+  if (musicCloud.isSignedIn()) await musicCloud.saveContent("rauny", CLOUD_CONTENT_KEYS[localKey], value);
+}
+
+async function migrateLocalArtwork() {
+  const localItems = await dbAll("art").catch(() => []);
+  for (const item of localItems) {
+    try {
+      const file = new File([item.blob], `${item.name || "Artwork"}.png`, { type: item.blob?.type || "image/png" });
+      await musicCloud.uploadArt("rauny", file, item.name || "Artwork");
+      await dbDelete("art", item.id);
+    } catch (error) { console.warn("Local artwork migration failed", error); }
+  }
+}
+
+async function syncRaunyWorkspace() {
+  if (!musicCloud.isSignedIn()) return updateCloudStatus();
+  try {
+    await Promise.all(Object.keys(CLOUD_CONTENT_KEYS).map(syncCloudList));
+    await migrateLocalArtwork();
+    renderDentistry(); renderDiet(); renderGoals();
+    await renderArt();
+    updateCloudStatus();
+    toast("Private workspace synced across devices.");
+  } catch (error) { toast(`Cloud sync needs attention: ${error.message}`); }
+}
+
+function openDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open("rauny_studio", 1);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains("art")) request.result.createObjectStore("art", { keyPath: "id", autoIncrement: true });
+      if (!request.result.objectStoreNames.contains("tracks")) request.result.createObjectStore("tracks", { keyPath: "id", autoIncrement: true });
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function dbAction(storeName, mode, action) {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeName, mode);
+    const request = action(transaction.objectStore(storeName));
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+    transaction.oncomplete = () => db.close();
+  });
+}
+const dbAll = (store) => dbAction(store, "readonly", (objectStore) => objectStore.getAll());
+const dbAdd = (store, value) => dbAction(store, "readwrite", (objectStore) => objectStore.add(value));
+const dbDelete = (store, id) => dbAction(store, "readwrite", (objectStore) => objectStore.delete(id));
+
+function renderDentistry() {
+  const notes = read(KEYS.dentistry);
+  $("#dentistry-notes").innerHTML = notes.length ? notes.map((note) => `<article class="note-card"><span>${escapeHtml(note.date)}</span><button class="delete-button" data-delete-note="${note.id}" aria-label="Delete ${escapeHtml(note.topic)}">×</button><h3>${escapeHtml(note.topic)}</h3><p>${escapeHtml(note.note)}</p></article>`).join("") : '<div class="empty-state">No notes yet</div>';
+}
+
+function renderDiet() {
+  const entries = read(KEYS.diet).sort((a, b) => b.id - a.id);
+  const today = new Date().toISOString().slice(0, 10);
+  const todayEntries = entries.filter((entry) => entry.date === today);
+  const water = todayEntries.reduce((sum, entry) => sum + Number(entry.water || 0), 0);
+  $("#diet-summary").innerHTML = `<span>${todayEntries.length} ${todayEntries.length === 1 ? "entry" : "entries"} today</span><span>${water} cups of water logged today</span>`;
+  $("#diet-entries").innerHTML = entries.length ? entries.map((entry) => `<article class="diet-entry"><small>${escapeHtml(entry.date)}</small><strong>${escapeHtml(entry.meal)}</strong><span>${Number(entry.water)} cups · ${escapeHtml(entry.energy)} energy</span><button class="delete-button" data-delete-diet="${entry.id}" aria-label="Delete diet entry">×</button></article>`).join("") : '<div class="empty-state">No entries yet</div>';
+}
+
+function renderGoals() {
+  const goals = read(KEYS.goals);
+  $("#goal-board").innerHTML = goals.length ? goals.map((goal) => `<article class="goal-card ${goal.done ? "done" : ""}"><span>${escapeHtml(goal.area)}</span><button class="delete-button" data-delete-goal="${goal.id}" aria-label="Delete ${escapeHtml(goal.title)}">×</button><h3>${escapeHtml(goal.title)}</h3><footer><small>${goal.done ? "Completed" : "In progress"}</small><button class="button ghost" type="button" data-toggle-goal="${goal.id}">${goal.done ? "Reopen" : "Done"}</button></footer></article>`).join("") : '<div class="empty-state">No goals yet</div>';
+}
+
+async function addArtFiles(files) {
+  const images = files.filter((file) => file.type.startsWith("image/"));
+  if (!images.length) return toast("Choose image files for the gallery.");
+  if (!(await ensureCloudAdmin())) return;
+  let added = 0;
+  for (const file of images) {
+    try { await musicCloud.uploadArt("rauny", file); added += 1; }
+    catch (error) { toast(`Could not upload ${file.name}: ${error.message}`); }
+  }
+  toast(`${added} artwork ${added === 1 ? "image" : "images"} uploaded to the private cloud.`);
+  await renderArt();
+}
+
+async function renderArt() {
+  const gallery = $("#art-gallery");
+  gallery.querySelectorAll("img[data-object-url]").forEach((image) => URL.revokeObjectURL(image.dataset.objectUrl));
+  if (musicCloud.isSignedIn()) {
+    try { artItems = await musicCloud.listArt("rauny"); }
+    catch (error) { artItems = []; return void (gallery.innerHTML = `<div class="empty-state">Cloud gallery unavailable: ${escapeHtml(error.message)}</div>`); }
+    gallery.innerHTML = artItems.length ? artItems.map((item) => `<article class="art-card"><img src="${item.url}" alt="${escapeHtml(item.name)}" /><footer><strong>${escapeHtml(item.name)}</strong><button class="delete-button" data-delete-art="${item.id}" aria-label="Delete ${escapeHtml(item.name)}">×</button></footer></article>`).join("") : '<div class="empty-state">No artwork yet</div>';
+  } else {
+    const items = (await dbAll("art").catch(() => [])).sort((a, b) => b.createdAt - a.createdAt);
+    gallery.innerHTML = items.length ? items.map((item) => { const url = URL.createObjectURL(item.blob); return `<article class="art-card"><img src="${url}" data-object-url="${url}" alt="${escapeHtml(item.name)}" /><footer><strong>${escapeHtml(item.name)}</strong><button class="delete-button" data-delete-art="${item.id}" aria-label="Delete ${escapeHtml(item.name)}">×</button></footer></article>`; }).join("") : '<div class="empty-state">Unlock cloud</div>';
+  }
+}
+
+function drawingPoint(event) {
+  const canvas = $("#drawing-canvas");
+  const bounds = canvas.getBoundingClientRect();
+  const pressure = event.pointerType === "mouse" ? (event.buttons ? 0.5 : 0) : Number(event.pressure || 0);
+  return {
+    x: (event.clientX - bounds.left) * (canvas.width / bounds.width),
+    y: (event.clientY - bounds.top) * (canvas.height / bounds.height),
+    pressure,
+    tiltX: Number(event.tiltX || 0),
+    tiltY: Number(event.tiltY || 0),
+    twist: Number(event.twist || 0),
+    altitude: Number(event.altitudeAngle || 0),
+    azimuth: Number(event.azimuthAngle || 0),
+  };
+}
+
+function pointAngle(point) {
+  if (point.twist) return point.twist * Math.PI / 180;
+  if (point.azimuth) return point.azimuth;
+  return Math.atan2(point.tiltY, point.tiltX || 0.0001);
+}
+
+function brushWidth(stroke, point) {
+  const pressure = point.pressure > 0 ? point.pressure : 0.35;
+  return Math.max(1, stroke.size * (0.32 + pressure * 1.18));
+}
+
+function drawStrokeSegment(stroke, start, end) {
+  const context = $("#drawing-canvas").getContext("2d");
+  context.save();
+  context.globalCompositeOperation = "source-over";
+  if (stroke.tool === "marker") {
+    const distance = Math.hypot(end.x - start.x, end.y - start.y);
+    const steps = Math.max(1, Math.ceil(distance / Math.max(2, stroke.size * 0.28)));
+    context.fillStyle = stroke.color;
+    context.globalAlpha = 0.22;
+    for (let index = 1; index <= steps; index += 1) {
+      const amount = index / steps;
+      const point = {
+        x: start.x + (end.x - start.x) * amount,
+        y: start.y + (end.y - start.y) * amount,
+        pressure: start.pressure + (end.pressure - start.pressure) * amount,
+        twist: end.twist,
+        azimuth: end.azimuth,
+        tiltX: end.tiltX,
+        tiltY: end.tiltY,
+      };
+      const radius = brushWidth(stroke, point) * 1.2;
+      context.save();
+      context.translate(point.x, point.y);
+      context.rotate(pointAngle(point));
+      context.scale(1, 0.28);
+      context.beginPath();
+      context.arc(0, 0, radius, 0, Math.PI * 2);
+      context.fill();
+      context.restore();
+    }
+  } else {
+    context.strokeStyle = stroke.tool === "eraser" ? "#ffffff" : stroke.color;
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    context.lineWidth = stroke.tool === "eraser" ? stroke.size * 1.8 : brushWidth(stroke, end);
+    context.beginPath();
+    context.moveTo(start.x, start.y);
+    context.lineTo(end.x, end.y);
+    context.stroke();
+  }
+  context.restore();
+}
+
+function drawStroke(stroke) {
+  if (!stroke.points.length) return;
+  if (stroke.points.length === 1) drawStrokeSegment(stroke, stroke.points[0], { ...stroke.points[0], x: stroke.points[0].x + 0.01 });
+  for (let index = 1; index < stroke.points.length; index += 1) drawStrokeSegment(stroke, stroke.points[index - 1], stroke.points[index]);
+}
+
+function redrawCanvas() {
+  const canvas = $("#drawing-canvas");
+  const context = canvas.getContext("2d");
+  context.save();
+  context.globalCompositeOperation = "source-over";
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.restore();
+  drawingStrokes.forEach(drawStroke);
+}
+
+function updateDrawingActions() {
+  const hasDrawing = drawingStrokes.length > 0;
+  $("#drawing-undo").disabled = !hasDrawing;
+  $("#drawing-redo").disabled = drawingRedoStack.length === 0;
+  $("#drawing-clear").disabled = !hasDrawing;
+  $("#drawing-save").disabled = !hasDrawing;
+  $("#drawing-download").disabled = !hasDrawing;
+}
+
+function selectDrawingTool(tool) {
+  drawingTool = tool;
+  $$("[data-draw-tool]").forEach((button) => {
+    const active = button.dataset.drawTool === tool;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+}
+
+function undoDrawing() {
+  if (!drawingStrokes.length) return;
+  drawingRedoStack.push(drawingStrokes.pop());
+  redrawCanvas();
+  updateDrawingActions();
+}
+
+function cycleDrawingTool() {
+  const tools = ["pen", "marker", "eraser"];
+  selectDrawingTool(tools[(tools.indexOf(drawingTool) + 1) % tools.length]);
+  toast(`${drawingTool[0].toUpperCase()}${drawingTool.slice(1)} selected.`);
+}
+
+function updatePencilTelemetry(event, point) {
+  const isPen = event.pointerType === "pen";
+  $("#pencil-input-type").textContent = isPen ? "Apple Pencil / stylus" : event.pointerType === "touch" ? "Touch" : "Mouse";
+  $("#pencil-pressure").textContent = `Pressure ${Math.round(point.pressure * 100)}%`;
+  const angle = Math.round(pointAngle(point) * 180 / Math.PI);
+  $("#pencil-angle").textContent = `${point.twist ? "Barrel" : "Brush"} ${angle}°`;
+  const preview = $("#pencil-preview");
+  const canvasBounds = $("#drawing-canvas").getBoundingClientRect();
+  preview.style.left = `${event.clientX - canvasBounds.left}px`;
+  preview.style.top = `${event.clientY - canvasBounds.top}px`;
+  preview.style.width = `${Math.max(5, Number($("#drawing-size").value) * (0.5 + point.pressure))}px`;
+  preview.style.transform = `translate(-50%,-50%) rotate(${angle}deg)`;
+  preview.classList.add("visible");
+}
+
+function finishDrawingStroke(event) {
+  if (activeDrawingPointer !== event.pointerId) return;
+  activeDrawingStroke = null;
+  activeDrawingPointer = null;
+  updateDrawingActions();
+}
+
+function canvasBlob() {
+  return new Promise((resolve, reject) => $("#drawing-canvas").toBlob((blob) => blob ? resolve(blob) : reject(new Error("Could not create the drawing image.")), "image/png"));
+}
+
+async function saveDrawingToGallery() {
+  if (!drawingStrokes.length) return;
+  const name = prompt("Name this drawing:", `Drawing ${new Date().toLocaleDateString()}`)?.trim();
+  if (!name) return;
+  if (!(await ensureCloudAdmin())) return;
+  try {
+    const blob = await canvasBlob();
+    const safeName = name.replace(/[^a-z0-9 _-]+/gi, "").trim() || "Drawing";
+    await musicCloud.uploadArt("rauny", new File([blob], `${safeName}.png`, { type: "image/png" }), name);
+    await renderArt();
+    toast("Drawing saved to the private cloud gallery.");
+  } catch (error) { toast(error.message); }
+}
+
+async function downloadDrawing() {
+  try {
+    const blob = await canvasBlob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `rauny-drawing-${new Date().toISOString().slice(0, 10)}.png`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (error) { toast(error.message); }
+}
+
+function initializeDrawingStudio() {
+  redrawCanvas();
+  const supportsPointer = "PointerEvent" in window;
+  const supportsCoalesced = supportsPointer && "getCoalescedEvents" in PointerEvent.prototype;
+  const supportsAngles = supportsPointer && "altitudeAngle" in PointerEvent.prototype && "azimuthAngle" in PointerEvent.prototype;
+  const supportsTwist = supportsPointer && "twist" in PointerEvent.prototype;
+  const supported = [supportsPointer && "pressure", supportsCoalesced && "high-resolution points", supportsAngles && "Pencil angles", supportsTwist && "barrel angle when reported"].filter(Boolean);
+  $("#pencil-capabilities").textContent = supported.length ? `${supported.join(" · ")} ready in this browser.` : "Basic touch and mouse drawing ready.";
+
+  $("#drawing-canvas").addEventListener("pointerdown", (event) => {
+    if ($("#pencil-only").checked && event.pointerType !== "pen") return toast("Pencil-only mode is on.");
+    const startPoint = drawingPoint(event);
+    if (event.pointerType === "pen") {
+      const now = performance.now();
+      const isDoubleTap = lastPencilTap && now - lastPencilTap.time < 360 && Math.hypot(startPoint.x - lastPencilTap.x, startPoint.y - lastPencilTap.y) < 85;
+      if (isDoubleTap) {
+        event.preventDefault();
+        lastPencilTap = null;
+        undoDrawing();
+        toast("Pencil-tip double tap · undo");
+        return;
+      }
+      lastPencilTap = { time: now, x: startPoint.x, y: startPoint.y };
+    }
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    activeDrawingPointer = event.pointerId;
+    activeDrawingStroke = { tool: drawingTool, color: $("#drawing-color").value, size: Number($("#drawing-size").value), points: [startPoint] };
+    drawingStrokes.push(activeDrawingStroke);
+    drawingRedoStack = [];
+    drawStroke(activeDrawingStroke);
+    updatePencilTelemetry(event, activeDrawingStroke.points[0]);
+    updateDrawingActions();
+  });
+
+  $("#drawing-canvas").addEventListener("pointermove", (event) => {
+    const hoverPoint = drawingPoint(event);
+    updatePencilTelemetry(event, hoverPoint);
+    if (activeDrawingPointer !== event.pointerId || !activeDrawingStroke) return;
+    event.preventDefault();
+    const samples = typeof event.getCoalescedEvents === "function" ? event.getCoalescedEvents() : [event];
+    for (const sample of samples.length ? samples : [event]) {
+      const point = drawingPoint(sample);
+      const previous = activeDrawingStroke.points.at(-1);
+      activeDrawingStroke.points.push(point);
+      drawStrokeSegment(activeDrawingStroke, previous, point);
+    }
+  });
+  $("#drawing-canvas").addEventListener("pointerup", finishDrawingStroke);
+  $("#drawing-canvas").addEventListener("pointercancel", finishDrawingStroke);
+  $("#drawing-canvas").addEventListener("pointerleave", () => { if (activeDrawingPointer === null) $("#pencil-preview").classList.remove("visible"); });
+
+  $$("[data-draw-tool]").forEach((button) => button.addEventListener("click", () => selectDrawingTool(button.dataset.drawTool)));
+  $("#pencil-quick-action").addEventListener("click", cycleDrawingTool);
+  $("#drawing-size").addEventListener("input", (event) => { $("#drawing-size-output").textContent = event.target.value; });
+  $("#drawing-undo").addEventListener("click", undoDrawing);
+  $("#drawing-redo").addEventListener("click", () => { if (drawingRedoStack.length) drawingStrokes.push(drawingRedoStack.pop()); redrawCanvas(); updateDrawingActions(); });
+  $("#drawing-clear").addEventListener("click", () => { if (!drawingStrokes.length || !confirm("Clear the current drawing?")) return; drawingStrokes = []; drawingRedoStack = []; redrawCanvas(); updateDrawingActions(); });
+  $("#drawing-save").addEventListener("click", saveDrawingToGallery);
+  $("#drawing-download").addEventListener("click", downloadDrawing);
+}
+
+async function addMusicFiles(files) {
+  const audio = files.filter((file) => file.type.startsWith("audio/") || /\.(mp3|m4a|aac|wav|ogg|oga|flac|opus|webm)$/i.test(file.name));
+  if (!audio.length) return toast("Choose one or more audio files.");
+  if (!(await ensureCloudAdmin())) return;
+  let added = 0;
+  for (const file of audio) {
+    try { await musicCloud.upload("rauny", file); added += 1; } catch (error) { toast(`Could not upload ${file.name}: ${error.message}`); }
+  }
+  toast(`${added} ${added === 1 ? "song" : "songs"} uploaded to the cloud.`);
+  renderMusic();
+}
+
+async function renderMusic() {
+  let errorMessage = "";
+  try { tracks = await musicCloud.list("rauny"); } catch (error) { tracks = []; errorMessage = error.message; }
+  $("#track-count").textContent = `${tracks.length} ${tracks.length === 1 ? "song" : "songs"}`;
+  $("#track-list").innerHTML = errorMessage ? `<div class="empty-state">Cloud library unavailable: ${escapeHtml(errorMessage)}</div>` : tracks.length ? tracks.map((track) => `<article class="track-row"><button class="track-play" data-play-track="${track.id}" aria-label="Play ${escapeHtml(track.title)}">▶</button><div><strong>${escapeHtml(track.title)}</strong><small>${formatBytes(track.size_bytes)}</small></div><button class="delete-button" data-delete-track="${track.id}" aria-label="Delete ${escapeHtml(track.title)}">×</button></article>`).join("") : '<div class="empty-state">No music yet</div>';
+}
+
+async function playTrack(id) {
+  const track = tracks.find((item) => item.id === String(id));
+  if (!track) return;
+  currentTrackId = track.id;
+  const player = $("#audio-player");
+  player.src = track.url;
+  $("#now-playing").textContent = track.title;
+  try { await player.play(); } catch { toast("Tap play to start this song."); }
+}
+
+async function ensureCloudAdmin() {
+  if (musicCloud.isSignedIn()) return true;
+  cloudAdminPassword ||= prompt("Enter the admin password for Rauny’s private cloud workspace:") || null;
+  if (!cloudAdminPassword) return false;
+  try {
+    await musicCloud.signIn(CLOUD_ADMIN_EMAIL, cloudAdminPassword);
+    await syncRaunyWorkspace();
+    return true;
+  } catch (error) {
+    cloudAdminPassword = null;
+    toast(error.message);
+    return false;
+  }
+}
+
+function stepTrack(direction) {
+  if (!tracks.length) return;
+  const index = Math.max(0, tracks.findIndex((track) => track.id === currentTrackId));
+  playTrack(tracks[(index + direction + tracks.length) % tracks.length].id);
+}
+
+function bindDropZone(zoneSelector, inputSelector, chooseSelector, handler) {
+  const zone = $(zoneSelector); const input = $(inputSelector); const open = () => input.click();
+  zone.addEventListener("click", (event) => { if (!event.target.closest("button")) open(); });
+  $(chooseSelector).addEventListener("click", (event) => { event.stopPropagation(); open(); });
+  zone.addEventListener("keydown", (event) => { if (!["Enter", " "].includes(event.key)) return; event.preventDefault(); open(); });
+  ["dragenter", "dragover"].forEach((name) => zone.addEventListener(name, (event) => { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; zone.classList.add("is-dragging"); }));
+  ["dragleave", "dragend"].forEach((name) => zone.addEventListener(name, (event) => { event.preventDefault(); if (name === "dragleave" && zone.contains(event.relatedTarget)) return; zone.classList.remove("is-dragging"); }));
+  zone.addEventListener("drop", (event) => { event.preventDefault(); zone.classList.remove("is-dragging"); handler([...event.dataTransfer.files]); });
+  input.addEventListener("change", (event) => { handler([...event.target.files]); event.target.value = ""; });
+}
+
+$("#menu-toggle").addEventListener("click", () => { const nav = $("#primary-nav"); nav.classList.toggle("open"); $("#menu-toggle").setAttribute("aria-expanded", String(nav.classList.contains("open"))); });
+$$('#primary-nav a').forEach((link) => link.addEventListener("click", () => $("#primary-nav").classList.remove("open")));
+$("#theme-toggle").addEventListener("click", () => applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
+$("#cloud-status").addEventListener("click", ensureCloudAdmin);
+
+$("#dentistry-form").addEventListener("submit", async (event) => { event.preventDefault(); if (!(await ensureCloudAdmin())) return; const notes = read(KEYS.dentistry); notes.unshift({ id: Date.now(), topic: $("#dentistry-topic").value.trim(), note: $("#dentistry-note").value.trim(), date: new Date().toLocaleDateString() }); await saveCloudList(KEYS.dentistry, notes); event.target.reset(); renderDentistry(); toast("Dentistry note synced."); });
+$("#dentistry-notes").addEventListener("click", async (event) => { const button = event.target.closest("[data-delete-note]"); if (!button || !(await ensureCloudAdmin())) return; await saveCloudList(KEYS.dentistry, read(KEYS.dentistry).filter((item) => item.id !== Number(button.dataset.deleteNote))); renderDentistry(); });
+
+$("#diet-form").addEventListener("submit", async (event) => { event.preventDefault(); if (!(await ensureCloudAdmin())) return; const entries = read(KEYS.diet); entries.push({ id: Date.now(), date: $("#diet-date").value, meal: $("#diet-meal").value.trim(), water: Number($("#diet-water").value || 0), energy: $("#diet-energy").value }); await saveCloudList(KEYS.diet, entries); $("#diet-meal").value = ""; $("#diet-water").value = 0; renderDiet(); toast("Diet entry synced."); });
+$("#diet-entries").addEventListener("click", async (event) => { const button = event.target.closest("[data-delete-diet]"); if (!button || !(await ensureCloudAdmin())) return; await saveCloudList(KEYS.diet, read(KEYS.diet).filter((item) => item.id !== Number(button.dataset.deleteDiet))); renderDiet(); });
+
+$("#goal-form").addEventListener("submit", async (event) => { event.preventDefault(); if (!(await ensureCloudAdmin())) return; const goals = read(KEYS.goals); goals.unshift({ id: Date.now(), title: $("#goal-title").value.trim(), area: $("#goal-area").value, done: false }); await saveCloudList(KEYS.goals, goals); event.target.reset(); renderGoals(); toast("Goal synced to the board."); });
+$("#goal-board").addEventListener("click", async (event) => { const toggle = event.target.closest("[data-toggle-goal]"); const remove = event.target.closest("[data-delete-goal]"); if ((!toggle && !remove) || !(await ensureCloudAdmin())) return; const goals = read(KEYS.goals); if (toggle) { const goal = goals.find((item) => item.id === Number(toggle.dataset.toggleGoal)); if (goal) goal.done = !goal.done; } if (remove) { const index = goals.findIndex((item) => item.id === Number(remove.dataset.deleteGoal)); if (index >= 0) goals.splice(index, 1); } await saveCloudList(KEYS.goals, goals); renderGoals(); });
+
+$("#art-gallery").addEventListener("click", async (event) => { const button = event.target.closest("[data-delete-art]"); if (!button) return; const alreadySignedIn = musicCloud.isSignedIn(); if (!(await ensureCloudAdmin())) return; if (!alreadySignedIn) return renderArt(); const item = artItems.find((candidate) => candidate.id === button.dataset.deleteArt); if (!item || !confirm(`Delete ${item.name} from the private cloud gallery?`)) return; await musicCloud.deleteArt(item); renderArt(); });
+$("#track-list").addEventListener("click", async (event) => {
+  const play = event.target.closest("[data-play-track]");
+  const remove = event.target.closest("[data-delete-track]");
+  if (play) playTrack(play.dataset.playTrack);
+  if (remove && await ensureCloudAdmin() && confirm("Delete this song from the cloud library?")) {
+    const track = tracks.find((item) => item.id === remove.dataset.deleteTrack);
+    if (!track) return;
+    try { await musicCloud.deleteTrack(track); renderMusic(); } catch (error) { toast(error.message); }
+  }
+});
+$("#toggle-track").addEventListener("click", () => { const player = $("#audio-player"); if (!player.src && tracks.length) return playTrack(tracks[0].id); if (player.paused) player.play(); else player.pause(); });
+$("#previous-track").addEventListener("click", () => stepTrack(-1));
+$("#next-track").addEventListener("click", () => stepTrack(1));
+$("#audio-player").addEventListener("play", () => $("#toggle-track").textContent = "❚❚");
+$("#audio-player").addEventListener("pause", () => $("#toggle-track").textContent = "▶");
+$("#audio-player").addEventListener("ended", () => stepTrack(1));
+
+bindDropZone("#art-drop-zone", "#art-file-input", "#choose-art", addArtFiles);
+bindDropZone("#music-drop-zone", "#music-file-input", "#choose-music", addMusicFiles);
+applyTheme(localStorage.getItem(KEYS.theme) || "light");
+$("#diet-date").value = new Date().toISOString().slice(0, 10);
+initializeDrawingStudio(); renderDentistry(); renderDiet(); renderGoals(); renderArt(); renderMusic(); updateCloudStatus();
+if (musicCloud.isSignedIn()) syncRaunyWorkspace();

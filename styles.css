@@ -14,7 +14,7 @@ a { color: inherit; }
 .skip-link:focus { transform:none; }
 .site-header { position:sticky; z-index:50; top:0; display:grid; grid-template-columns:auto 1fr auto; min-height:var(--header); align-items:center; gap:28px; border-bottom:1px solid var(--line); background:color-mix(in srgb,var(--canvas) 88%,transparent); padding:0 clamp(20px,5vw,72px); backdrop-filter:blur(18px); }
 .brand { display:flex; align-items:center; gap:11px; text-decoration:none; }
-.brand span { display:grid; width:42px; height:42px; place-items:center; border-radius:50%; background:var(--terracotta); color:#fff; font-family:"Italiana",serif; }
+.brand img { width:46px; height:46px; object-fit:contain; filter:drop-shadow(0 6px 8px rgba(0,67,102,.18)); }
 .brand strong { font-size:.95rem; letter-spacing:.02em; }
 nav { display:flex; justify-content:center; gap:clamp(15px,2.4vw,34px); }
 nav a { color:var(--muted); font-size:.78rem; font-weight:700; text-decoration:none; }
@@ -40,7 +40,7 @@ h1 em { color:var(--terracotta); font-weight:400; }
 .button.primary { border-color:var(--ink); background:var(--ink); color:var(--canvas); }
 .button.ghost { background:var(--surface); color:var(--ink); }
 .hero-art { position:relative; display:grid; width:min(440px,100%); aspect-ratio:1; place-items:center; justify-self:end; overflow:hidden; border-radius:50% 50% 43% 57% / 42% 54% 46% 58%; background:var(--rose); box-shadow:var(--shadow); }
-.hero-art strong { z-index:2; font-family:"Italiana",serif; font-size:13rem; font-weight:400; }
+.hero-logo { position:relative; z-index:2; width:72%; height:72%; object-fit:contain; filter:drop-shadow(0 22px 20px rgba(0,63,94,.22)); }
 .hero-art small { position:absolute; z-index:2; bottom:50px; letter-spacing:.14em; text-transform:uppercase; }
 .orb { position:absolute; display:block; border-radius:50%; }
 .orb.one { width:230px; height:230px; top:-45px; right:-30px; background:var(--sun); }
@@ -128,7 +128,7 @@ body > footer { display:flex; width:min(1180px,calc(100% - 40px)); justify-conte
   .section-shell { width:min(100% - 26px,1180px); }
   .hero { gap:48px; padding-block:55px; }
   h1 { font-size:clamp(3.5rem,18vw,5.3rem); }
-  .hero-art strong { font-size:9rem; }
+  .hero-logo { width:70%; height:70%; }
   .overview { grid-template-columns:1fr; }
   .overview a { min-height:170px; border-right:0; border-bottom:1px solid var(--line); }
   .overview a:nth-child(3) { border-bottom:1px solid var(--line); }

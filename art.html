@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f2f4f6" />
+    <meta name="description" content="Rauny Ramirez — art studio and gallery." />
+    <title>Art · Rauny Ramirez</title>
+    <link rel="icon" href="favicon.ico" sizes="any" /><link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" /><link rel="icon" href="favicon-16.png" type="image/png" sizes="16x16" /><link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180" /><link rel="manifest" href="site.webmanifest" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin /><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css?v=20260803-pages" /><script src="music-cloud.js" defer></script><script src="script.js?v=20260803-pages" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="Rauny Ramirez home"><img src="logo.png" alt="" /><strong>Rauny Ramirez</strong></a>
+      <button id="menu-toggle" class="icon-button menu-toggle" type="button" aria-label="Open menu" aria-expanded="false">☰</button>
+      <nav id="primary-nav" aria-label="Primary navigation"><a href="art.html" aria-current="page">Art</a><a href="dentistry.html">Dentistry</a><a href="diet.html">Diet</a><a href="goals.html">Goals</a><a href="music.html">Music</a></nav>
+      <button id="cloud-status" class="cloud-status" type="button"><span></span>Cloud locked</button><button id="theme-toggle" class="icon-button" type="button" aria-label="Switch color theme">☾</button>
+    </header>
+    <aside id="music-bar" class="music-bar" aria-label="Music player"><div><span>Now playing</span><strong id="now-playing">Nothing selected</strong></div><audio id="audio-player" preload="metadata"></audio><button id="previous-track" type="button" aria-label="Previous track">‹</button><button id="toggle-track" class="play-button" type="button" aria-label="Play or pause">▶</button><button id="next-track" type="button" aria-label="Next track">›</button></aside>
+    <main id="main-content">
+      <section class="section-shell content-section">
+        <header class="section-heading"><h1>Art</h1></header>
+        <article class="drawing-studio" aria-labelledby="drawing-studio-title">
+          <header class="drawing-heading"><div><h2 id="drawing-studio-title">Canvas</h2></div><p id="pencil-capabilities">Checking available stylus features…</p></header>
+          <div class="drawing-toolbar" aria-label="Drawing tools">
+            <div class="tool-segment" role="group" aria-label="Brush"><button class="draw-tool active" type="button" data-draw-tool="pen" aria-pressed="true">Pen</button><button class="draw-tool" type="button" data-draw-tool="marker" aria-pressed="false">Marker</button><button class="draw-tool" type="button" data-draw-tool="eraser" aria-pressed="false">Eraser</button></div>
+            <label class="color-control"><span>Color</span><input id="drawing-color" type="color" value="#283b52" /></label><label class="size-control"><span>Size</span><input id="drawing-size" type="range" min="2" max="48" value="10" /><output id="drawing-size-output">10</output></label><label class="pencil-only-control"><input id="pencil-only" type="checkbox" /><span>Pencil only</span></label>
+            <div class="drawing-actions"><button id="pencil-quick-action" class="pencil-quick-action" type="button">Quick action · next tool</button><button id="drawing-undo" type="button" disabled>Undo</button><button id="drawing-redo" type="button" disabled>Redo</button><button id="drawing-clear" type="button" disabled>Clear</button><button id="drawing-download" type="button" disabled>Download PNG</button><button id="drawing-save" class="save-drawing" type="button" disabled>Save to gallery</button></div>
+          </div>
+          <div class="drawing-canvas-shell"><canvas id="drawing-canvas" width="1600" height="1200" aria-label="Drawing canvas. Use Apple Pencil, touch, or mouse to draw."></canvas><span id="pencil-preview" class="pencil-preview" aria-hidden="true"></span><div class="pencil-telemetry" aria-live="polite"><span id="pencil-input-type">Ready</span><span id="pencil-pressure">Pressure —</span><span id="pencil-angle">Angle —</span></div></div>
+          <footer class="pencil-note">Tip twice: Undo · Quick action: Next tool · Pro squeeze requires iPad app</footer>
+        </article>
+        <h2 class="gallery-heading">Saved artwork</h2><input id="art-file-input" type="file" accept="image/*" multiple hidden /><div id="art-drop-zone" class="drop-zone" role="button" tabindex="0"><span>＋</span><div><strong>Add artwork</strong></div><button id="choose-art" class="button ghost" type="button">Choose</button></div><div id="art-gallery" class="art-gallery"><div class="empty-state">No artwork yet</div></div>
+      </section>
+    </main>
+    <footer><strong>Rauny Ramirez</strong><span>raunyramirez.com</span></footer><div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>

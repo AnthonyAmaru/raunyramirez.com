@@ -26,12 +26,14 @@ function toast(message) { const node = $("#toast"); node.textContent = message; 
 
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme === "dark" ? "dark" : "light";
-  $("#theme-toggle").textContent = theme === "dark" ? "☀" : "☾";
+  const toggle = $("#theme-toggle");
+  if (toggle) toggle.textContent = theme === "dark" ? "☀" : "☾";
   localStorage.setItem(KEYS.theme, theme);
 }
 
 function updateCloudStatus() {
   const status = $("#cloud-status");
+  if (!status) return;
   const connected = Boolean(window.musicCloud?.isSignedIn());
   status.classList.toggle("connected", connected);
   status.lastChild.textContent = connected ? "Cloud synced" : "Cloud locked";
@@ -101,11 +103,13 @@ const dbAdd = (store, value) => dbAction(store, "readwrite", (objectStore) => ob
 const dbDelete = (store, id) => dbAction(store, "readwrite", (objectStore) => objectStore.delete(id));
 
 function renderDentistry() {
+  if (!$("#dentistry-notes")) return;
   const notes = read(KEYS.dentistry);
   $("#dentistry-notes").innerHTML = notes.length ? notes.map((note) => `<article class="note-card"><span>${escapeHtml(note.date)}</span><button class="delete-button" data-delete-note="${note.id}" aria-label="Delete ${escapeHtml(note.topic)}">×</button><h3>${escapeHtml(note.topic)}</h3><p>${escapeHtml(note.note)}</p></article>`).join("") : '<div class="empty-state">No notes yet</div>';
 }
 
 function renderDiet() {
+  if (!$("#diet-entries") || !$("#diet-summary")) return;
   const entries = read(KEYS.diet).sort((a, b) => b.id - a.id);
   const today = new Date().toISOString().slice(0, 10);
   const todayEntries = entries.filter((entry) => entry.date === today);
@@ -115,6 +119,7 @@ function renderDiet() {
 }
 
 function renderGoals() {
+  if (!$("#goal-board")) return;
   const goals = read(KEYS.goals);
   $("#goal-board").innerHTML = goals.length ? goals.map((goal) => `<article class="goal-card ${goal.done ? "done" : ""}"><span>${escapeHtml(goal.area)}</span><button class="delete-button" data-delete-goal="${goal.id}" aria-label="Delete ${escapeHtml(goal.title)}">×</button><h3>${escapeHtml(goal.title)}</h3><footer><small>${goal.done ? "Completed" : "In progress"}</small><button class="button ghost" type="button" data-toggle-goal="${goal.id}">${goal.done ? "Reopen" : "Done"}</button></footer></article>`).join("") : '<div class="empty-state">No goals yet</div>';
 }
@@ -134,6 +139,7 @@ async function addArtFiles(files) {
 
 async function renderArt() {
   const gallery = $("#art-gallery");
+  if (!gallery) return;
   gallery.querySelectorAll("img[data-object-url]").forEach((image) => URL.revokeObjectURL(image.dataset.objectUrl));
   if (musicCloud.isSignedIn()) {
     try { artItems = await musicCloud.listArt("rauny"); }
@@ -316,6 +322,7 @@ async function downloadDrawing() {
 }
 
 function initializeDrawingStudio() {
+  if (!$("#drawing-canvas")) return;
   redrawCanvas();
   const supportsPointer = "PointerEvent" in window;
   const supportsCoalesced = supportsPointer && "getCoalescedEvents" in PointerEvent.prototype;
@@ -392,8 +399,8 @@ async function addMusicFiles(files) {
 async function renderMusic() {
   let errorMessage = "";
   try { tracks = await musicCloud.list("rauny"); } catch (error) { tracks = []; errorMessage = error.message; }
-  $("#track-count").textContent = `${tracks.length} ${tracks.length === 1 ? "song" : "songs"}`;
-  $("#track-list").innerHTML = errorMessage ? `<div class="empty-state">Cloud library unavailable: ${escapeHtml(errorMessage)}</div>` : tracks.length ? tracks.map((track) => `<article class="track-row"><button class="track-play" data-play-track="${track.id}" aria-label="Play ${escapeHtml(track.title)}">▶</button><div><strong>${escapeHtml(track.title)}</strong><small>${formatBytes(track.size_bytes)}</small></div><button class="delete-button" data-delete-track="${track.id}" aria-label="Delete ${escapeHtml(track.title)}">×</button></article>`).join("") : '<div class="empty-state">No music yet</div>';
+  if ($("#track-count")) $("#track-count").textContent = `${tracks.length} ${tracks.length === 1 ? "song" : "songs"}`;
+  if ($("#track-list")) $("#track-list").innerHTML = errorMessage ? `<div class="empty-state">Cloud library unavailable: ${escapeHtml(errorMessage)}</div>` : tracks.length ? tracks.map((track) => `<article class="track-row"><button class="track-play" data-play-track="${track.id}" aria-label="Play ${escapeHtml(track.title)}">▶</button><div><strong>${escapeHtml(track.title)}</strong><small>${formatBytes(track.size_bytes)}</small></div><button class="delete-button" data-delete-track="${track.id}" aria-label="Delete ${escapeHtml(track.title)}">×</button></article>`).join("") : '<div class="empty-state">No music yet</div>';
 }
 
 async function playTrack(id) {
@@ -428,7 +435,9 @@ function stepTrack(direction) {
 }
 
 function bindDropZone(zoneSelector, inputSelector, chooseSelector, handler) {
-  const zone = $(zoneSelector); const input = $(inputSelector); const open = () => input.click();
+  const zone = $(zoneSelector); const input = $(inputSelector);
+  if (!zone || !input || !$(chooseSelector)) return;
+  const open = () => input.click();
   zone.addEventListener("click", (event) => { if (!event.target.closest("button")) open(); });
   $(chooseSelector).addEventListener("click", (event) => { event.stopPropagation(); open(); });
   zone.addEventListener("keydown", (event) => { if (!["Enter", " "].includes(event.key)) return; event.preventDefault(); open(); });
@@ -443,17 +452,17 @@ $$('#primary-nav a').forEach((link) => link.addEventListener("click", () => $("#
 $("#theme-toggle").addEventListener("click", () => applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
 $("#cloud-status").addEventListener("click", ensureCloudAdmin);
 
-$("#dentistry-form").addEventListener("submit", async (event) => { event.preventDefault(); if (!(await ensureCloudAdmin())) return; const notes = read(KEYS.dentistry); notes.unshift({ id: Date.now(), topic: $("#dentistry-topic").value.trim(), note: $("#dentistry-note").value.trim(), date: new Date().toLocaleDateString() }); await saveCloudList(KEYS.dentistry, notes); event.target.reset(); renderDentistry(); toast("Dentistry note synced."); });
-$("#dentistry-notes").addEventListener("click", async (event) => { const button = event.target.closest("[data-delete-note]"); if (!button || !(await ensureCloudAdmin())) return; await saveCloudList(KEYS.dentistry, read(KEYS.dentistry).filter((item) => item.id !== Number(button.dataset.deleteNote))); renderDentistry(); });
+$("#dentistry-form")?.addEventListener("submit", async (event) => { event.preventDefault(); if (!(await ensureCloudAdmin())) return; const notes = read(KEYS.dentistry); notes.unshift({ id: Date.now(), topic: $("#dentistry-topic").value.trim(), note: $("#dentistry-note").value.trim(), date: new Date().toLocaleDateString() }); await saveCloudList(KEYS.dentistry, notes); event.target.reset(); renderDentistry(); toast("Dentistry note synced."); });
+$("#dentistry-notes")?.addEventListener("click", async (event) => { const button = event.target.closest("[data-delete-note]"); if (!button || !(await ensureCloudAdmin())) return; await saveCloudList(KEYS.dentistry, read(KEYS.dentistry).filter((item) => item.id !== Number(button.dataset.deleteNote))); renderDentistry(); });
 
-$("#diet-form").addEventListener("submit", async (event) => { event.preventDefault(); if (!(await ensureCloudAdmin())) return; const entries = read(KEYS.diet); entries.push({ id: Date.now(), date: $("#diet-date").value, meal: $("#diet-meal").value.trim(), water: Number($("#diet-water").value || 0), energy: $("#diet-energy").value }); await saveCloudList(KEYS.diet, entries); $("#diet-meal").value = ""; $("#diet-water").value = 0; renderDiet(); toast("Diet entry synced."); });
-$("#diet-entries").addEventListener("click", async (event) => { const button = event.target.closest("[data-delete-diet]"); if (!button || !(await ensureCloudAdmin())) return; await saveCloudList(KEYS.diet, read(KEYS.diet).filter((item) => item.id !== Number(button.dataset.deleteDiet))); renderDiet(); });
+$("#diet-form")?.addEventListener("submit", async (event) => { event.preventDefault(); if (!(await ensureCloudAdmin())) return; const entries = read(KEYS.diet); entries.push({ id: Date.now(), date: $("#diet-date").value, meal: $("#diet-meal").value.trim(), water: Number($("#diet-water").value || 0), energy: $("#diet-energy").value }); await saveCloudList(KEYS.diet, entries); $("#diet-meal").value = ""; $("#diet-water").value = 0; renderDiet(); toast("Diet entry synced."); });
+$("#diet-entries")?.addEventListener("click", async (event) => { const button = event.target.closest("[data-delete-diet]"); if (!button || !(await ensureCloudAdmin())) return; await saveCloudList(KEYS.diet, read(KEYS.diet).filter((item) => item.id !== Number(button.dataset.deleteDiet))); renderDiet(); });
 
-$("#goal-form").addEventListener("submit", async (event) => { event.preventDefault(); if (!(await ensureCloudAdmin())) return; const goals = read(KEYS.goals); goals.unshift({ id: Date.now(), title: $("#goal-title").value.trim(), area: $("#goal-area").value, done: false }); await saveCloudList(KEYS.goals, goals); event.target.reset(); renderGoals(); toast("Goal synced to the board."); });
-$("#goal-board").addEventListener("click", async (event) => { const toggle = event.target.closest("[data-toggle-goal]"); const remove = event.target.closest("[data-delete-goal]"); if ((!toggle && !remove) || !(await ensureCloudAdmin())) return; const goals = read(KEYS.goals); if (toggle) { const goal = goals.find((item) => item.id === Number(toggle.dataset.toggleGoal)); if (goal) goal.done = !goal.done; } if (remove) { const index = goals.findIndex((item) => item.id === Number(remove.dataset.deleteGoal)); if (index >= 0) goals.splice(index, 1); } await saveCloudList(KEYS.goals, goals); renderGoals(); });
+$("#goal-form")?.addEventListener("submit", async (event) => { event.preventDefault(); if (!(await ensureCloudAdmin())) return; const goals = read(KEYS.goals); goals.unshift({ id: Date.now(), title: $("#goal-title").value.trim(), area: $("#goal-area").value, done: false }); await saveCloudList(KEYS.goals, goals); event.target.reset(); renderGoals(); toast("Goal synced to the board."); });
+$("#goal-board")?.addEventListener("click", async (event) => { const toggle = event.target.closest("[data-toggle-goal]"); const remove = event.target.closest("[data-delete-goal]"); if ((!toggle && !remove) || !(await ensureCloudAdmin())) return; const goals = read(KEYS.goals); if (toggle) { const goal = goals.find((item) => item.id === Number(toggle.dataset.toggleGoal)); if (goal) goal.done = !goal.done; } if (remove) { const index = goals.findIndex((item) => item.id === Number(remove.dataset.deleteGoal)); if (index >= 0) goals.splice(index, 1); } await saveCloudList(KEYS.goals, goals); renderGoals(); });
 
-$("#art-gallery").addEventListener("click", async (event) => { const button = event.target.closest("[data-delete-art]"); if (!button) return; const alreadySignedIn = musicCloud.isSignedIn(); if (!(await ensureCloudAdmin())) return; if (!alreadySignedIn) return renderArt(); const item = artItems.find((candidate) => candidate.id === button.dataset.deleteArt); if (!item || !confirm(`Delete ${item.name} from the private cloud gallery?`)) return; await musicCloud.deleteArt(item); renderArt(); });
-$("#track-list").addEventListener("click", async (event) => {
+$("#art-gallery")?.addEventListener("click", async (event) => { const button = event.target.closest("[data-delete-art]"); if (!button) return; const alreadySignedIn = musicCloud.isSignedIn(); if (!(await ensureCloudAdmin())) return; if (!alreadySignedIn) return renderArt(); const item = artItems.find((candidate) => candidate.id === button.dataset.deleteArt); if (!item || !confirm(`Delete ${item.name} from the private cloud gallery?`)) return; await musicCloud.deleteArt(item); renderArt(); });
+$("#track-list")?.addEventListener("click", async (event) => {
   const play = event.target.closest("[data-play-track]");
   const remove = event.target.closest("[data-delete-track]");
   if (play) playTrack(play.dataset.playTrack);
@@ -473,6 +482,6 @@ $("#audio-player").addEventListener("ended", () => stepTrack(1));
 bindDropZone("#art-drop-zone", "#art-file-input", "#choose-art", addArtFiles);
 bindDropZone("#music-drop-zone", "#music-file-input", "#choose-music", addMusicFiles);
 applyTheme(localStorage.getItem(KEYS.theme) || "light");
-$("#diet-date").value = new Date().toISOString().slice(0, 10);
+if ($("#diet-date")) $("#diet-date").value = new Date().toISOString().slice(0, 10);
 initializeDrawingStudio(); renderDentistry(); renderDiet(); renderGoals(); renderArt(); renderMusic(); updateCloudStatus();
 if (musicCloud.isSignedIn()) syncRaunyWorkspace();

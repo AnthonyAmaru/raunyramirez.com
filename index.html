@@ -4,13 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f2f4f6" />
-    <meta name="description" content="Rauny Ramirez — art, dentistry, nourishment, goals, and music." />
-    <meta property="og:title" content="Rauny Ramirez · Studio & Practice" />
-    <meta property="og:description" content="A living space for creative work, clinical growth, healthy rhythms, goals, and sound." />
+    <meta name="description" content="Rauny Ramirez — art, dentistry, diet, goals, and music." />
+    <meta property="og:title" content="Rauny Ramirez" />
+    <meta property="og:description" content="Art, dentistry, diet, goals, and music." />
     <meta property="og:url" content="https://raunyramirez.com/" />
     <meta property="og:image" content="https://raunyramirez.com/logo.png" />
     <meta property="og:type" content="website" />
-    <title>Rauny Ramirez · Studio & Practice</title>
+    <title>Rauny Ramirez</title>
     <link rel="icon" href="favicon.ico" sizes="any" />
     <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" />
     <link rel="icon" href="favicon-16.png" type="image/png" sizes="16x16" />
@@ -19,17 +19,17 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=20260803-minimal" />
+    <link rel="stylesheet" href="styles.css?v=20260803-pages" />
     <script src="music-cloud.js" defer></script>
-    <script src="script.js" defer></script>
+    <script src="script.js?v=20260803-pages" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="site-header">
-      <a class="brand" href="#home" aria-label="Rauny Ramirez home"><img src="logo.png" alt="" /><strong>Rauny Ramirez</strong></a>
+      <a class="brand" href="index.html" aria-label="Rauny Ramirez home"><img src="logo.png" alt="" /><strong>Rauny Ramirez</strong></a>
       <button id="menu-toggle" class="icon-button menu-toggle" type="button" aria-label="Open menu" aria-expanded="false">☰</button>
       <nav id="primary-nav" aria-label="Primary navigation">
-        <a href="#art">Art</a><a href="#dentistry">Dentistry</a><a href="#diet">Diet</a><a href="#goals">Goals</a><a href="#music">Music</a>
+        <a href="art.html">Art</a><a href="dentistry.html">Dentistry</a><a href="diet.html">Diet</a><a href="goals.html">Goals</a><a href="music.html">Music</a>
       </nav>
       <button id="cloud-status" class="cloud-status" type="button"><span></span>Cloud locked</button>
       <button id="theme-toggle" class="icon-button" type="button" aria-label="Switch color theme">☾</button>
@@ -44,85 +44,15 @@
     </aside>
 
     <main id="main-content">
-      <section id="home" class="home-launch section-shell">
-        <header><img src="logo.png" alt="" /><div><h1>Rauny Ramirez</h1><span>Private workspace</span></div></header>
-        <div class="launch-grid" aria-label="Website areas">
-          <a href="#art"><span>01</span><strong>Art</strong><b>→</b></a>
-          <a href="#dentistry"><span>02</span><strong>Dentistry</strong><b>→</b></a>
-          <a href="#diet"><span>03</span><strong>Diet</strong><b>→</b></a>
-          <a href="#goals"><span>04</span><strong>Goals</strong><b>→</b></a>
-          <a href="#music"><span>05</span><strong>Music</strong><b>→</b></a>
+      <section class="home-launch section-shell" aria-labelledby="home-title">
+        <header><img src="logo.png" alt="" /><div><h1 id="home-title">Rauny Ramirez</h1></div></header>
+        <div class="launch-grid" aria-label="Website pages">
+          <a href="art.html"><span>01</span><strong>Art</strong><b>→</b></a>
+          <a href="dentistry.html"><span>02</span><strong>Dentistry</strong><b>→</b></a>
+          <a href="diet.html"><span>03</span><strong>Diet</strong><b>→</b></a>
+          <a href="goals.html"><span>04</span><strong>Goals</strong><b>→</b></a>
+          <a href="music.html"><span>05</span><strong>Music</strong><b>→</b></a>
         </div>
-      </section>
-
-      <section id="art" class="section-shell content-section">
-        <header class="section-heading"><h2>Art</h2></header>
-        <article class="drawing-studio" aria-labelledby="drawing-studio-title">
-          <header class="drawing-heading">
-            <div><h3 id="drawing-studio-title">Canvas</h3></div>
-            <p id="pencil-capabilities">Checking available stylus features…</p>
-          </header>
-          <div class="drawing-toolbar" aria-label="Drawing tools">
-            <div class="tool-segment" role="group" aria-label="Brush">
-              <button class="draw-tool active" type="button" data-draw-tool="pen" aria-pressed="true">Pen</button>
-              <button class="draw-tool" type="button" data-draw-tool="marker" aria-pressed="false">Marker</button>
-              <button class="draw-tool" type="button" data-draw-tool="eraser" aria-pressed="false">Eraser</button>
-            </div>
-            <label class="color-control"><span>Color</span><input id="drawing-color" type="color" value="#283b52" /></label>
-            <label class="size-control"><span>Size</span><input id="drawing-size" type="range" min="2" max="48" value="10" /><output id="drawing-size-output">10</output></label>
-            <label class="pencil-only-control"><input id="pencil-only" type="checkbox" /><span>Pencil only</span></label>
-            <div class="drawing-actions">
-              <button id="pencil-quick-action" class="pencil-quick-action" type="button">Quick action · next tool</button>
-              <button id="drawing-undo" type="button" disabled>Undo</button>
-              <button id="drawing-redo" type="button" disabled>Redo</button>
-              <button id="drawing-clear" type="button" disabled>Clear</button>
-              <button id="drawing-download" type="button" disabled>Download PNG</button>
-              <button id="drawing-save" class="save-drawing" type="button" disabled>Save to gallery</button>
-            </div>
-          </div>
-          <div class="drawing-canvas-shell">
-            <canvas id="drawing-canvas" width="1600" height="1200" aria-label="Drawing canvas. Use Apple Pencil, touch, or mouse to draw."></canvas>
-            <span id="pencil-preview" class="pencil-preview" aria-hidden="true"></span>
-            <div class="pencil-telemetry" aria-live="polite"><span id="pencil-input-type">Ready</span><span id="pencil-pressure">Pressure —</span><span id="pencil-angle">Angle —</span></div>
-          </div>
-          <footer class="pencil-note">Tip twice: Undo · Quick action: Next tool · Pro squeeze requires iPad app</footer>
-        </article>
-        <h3 class="gallery-heading">Saved artwork</h3>
-        <input id="art-file-input" type="file" accept="image/*" multiple hidden />
-        <div id="art-drop-zone" class="drop-zone" role="button" tabindex="0"><span>＋</span><div><strong>Add artwork</strong></div><button id="choose-art" class="button ghost" type="button">Choose</button></div>
-        <div id="art-gallery" class="art-gallery"><div class="empty-state">No artwork yet</div></div>
-      </section>
-
-      <section id="dentistry" class="section-shell content-section dentistry-section">
-        <header class="section-heading"><h2>Dentistry</h2></header>
-        <form id="dentistry-form" class="entry-form"><label>Topic<input id="dentistry-topic" required placeholder="e.g. Restorative dentistry" /></label><label>Note<textarea id="dentistry-note" required placeholder="Add a learning note or milestone"></textarea></label><button class="button primary" type="submit">Save note</button></form>
-        <div id="dentistry-notes" class="card-grid"></div>
-      </section>
-
-      <section id="diet" class="section-shell content-section">
-        <header class="section-heading"><h2>Diet</h2></header>
-        <form id="diet-form" class="diet-form">
-          <label>Date<input id="diet-date" type="date" required /></label>
-          <label>Meal or note<input id="diet-meal" required placeholder="Lunch · grain bowl" /></label>
-          <label>Water (cups)<input id="diet-water" type="number" min="0" step="1" value="0" /></label>
-          <label>Energy<select id="diet-energy"><option>High</option><option selected>Steady</option><option>Low</option></select></label>
-          <button class="button primary" type="submit">Add entry</button>
-        </form>
-        <div id="diet-summary" class="summary-strip"></div>
-        <div id="diet-entries" class="entry-list"></div>
-      </section>
-
-      <section id="goals" class="section-shell content-section goals-section">
-        <header class="section-heading"><h2>Goals</h2></header>
-        <form id="goal-form" class="goal-form"><input id="goal-title" required placeholder="What do you want to accomplish?" /><select id="goal-area"><option>Art</option><option>Dentistry</option><option>Health</option><option>Personal</option></select><button class="button primary" type="submit">Add goal</button></form>
-        <div id="goal-board" class="goal-board"></div>
-      </section>
-
-      <section id="music" class="section-shell content-section">
-        <header class="section-heading"><h2>Music</h2></header>
-        <input id="music-file-input" type="file" accept="audio/*" multiple hidden />
-        <div id="music-drop-zone" class="drop-zone music-drop" role="button" tabindex="0"><span>♫</span><div><strong>Add music</strong></div><button id="choose-music" class="button ghost" type="button">Choose</button></div>
-        <div class="music-library"><div class="library-title"><h3>All music</h3><small id="track-count">0 songs</small></div><div id="track-list" class="track-list"><div class="empty-state">No music yet</div></div></div>
       </section>
     </main>
 

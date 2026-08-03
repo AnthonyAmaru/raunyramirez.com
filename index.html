@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f2ea" />
+    <meta name="description" content="Rauny Ramirez — art, dentistry, nourishment, goals, and music." />
+    <meta property="og:title" content="Rauny Ramirez · Studio & Practice" />
+    <meta property="og:description" content="A living space for creative work, clinical growth, healthy rhythms, goals, and sound." />
+    <meta property="og:url" content="https://raunyramirez.com/" />
+    <meta property="og:type" content="website" />
+    <title>Rauny Ramirez · Studio & Practice</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Italiana&amp;display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="script.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="site-header">
+      <a class="brand" href="#home" aria-label="Rauny Ramirez home"><span>RR</span><strong>Rauny Ramirez</strong></a>
+      <button id="menu-toggle" class="icon-button menu-toggle" type="button" aria-label="Open menu" aria-expanded="false">☰</button>
+      <nav id="primary-nav" aria-label="Primary navigation">
+        <a href="#art">Art</a><a href="#dentistry">Dentistry</a><a href="#diet">Diet</a><a href="#goals">Goals</a><a href="#music">Music</a>
+      </nav>
+      <button id="theme-toggle" class="icon-button" type="button" aria-label="Switch color theme">☾</button>
+    </header>
+
+    <aside id="music-bar" class="music-bar" aria-label="Music player">
+      <div><span>Now playing</span><strong id="now-playing">Nothing selected</strong></div>
+      <audio id="audio-player" preload="metadata"></audio>
+      <button id="previous-track" type="button" aria-label="Previous track">‹</button>
+      <button id="toggle-track" class="play-button" type="button" aria-label="Play or pause">▶</button>
+      <button id="next-track" type="button" aria-label="Next track">›</button>
+    </aside>
+
+    <main id="main-content">
+      <section id="home" class="hero section-shell">
+        <div class="hero-copy">
+          <p class="eyebrow">Studio · practice · daily life</p>
+          <h1>A life shaped with <em>care.</em></h1>
+          <p class="lede">A growing collection of Rauny’s artwork, dentistry journey, nourishing routines, goals, and music.</p>
+          <div class="hero-actions"><a class="button primary" href="#art">Enter the studio</a><a class="button ghost" href="#goals">See the goal board</a></div>
+        </div>
+        <div class="hero-art" aria-hidden="true"><span class="orb one"></span><span class="orb two"></span><strong>R</strong><small>make · learn · become</small></div>
+      </section>
+
+      <section class="section-shell overview" aria-label="Website areas">
+        <a href="#art"><span>01</span><h2>Artwork</h2><p>A personal gallery for images, studies, and finished pieces.</p></a>
+        <a href="#dentistry"><span>02</span><h2>Dentistry</h2><p>Clinical interests, learning notes, and professional milestones.</p></a>
+        <a href="#diet"><span>03</span><h2>Diet</h2><p>Simple daily food, water, and energy tracking.</p></a>
+        <a href="#goals"><span>04</span><h2>Goals</h2><p>A visual board for what matters now and what comes next.</p></a>
+      </section>
+
+      <section id="art" class="section-shell content-section">
+        <header class="section-heading"><div><p class="eyebrow">Selected and in progress</p><h2>Art studio</h2></div><p>Build a private gallery from this device. Artwork stays in this browser until cloud storage is connected.</p></header>
+        <input id="art-file-input" type="file" accept="image/*" multiple hidden />
+        <div id="art-drop-zone" class="drop-zone" role="button" tabindex="0"><span>＋</span><div><strong>Drop artwork here</strong><p>or choose images from your computer</p></div><button id="choose-art" class="button ghost" type="button">Choose images</button></div>
+        <div id="art-gallery" class="art-gallery"><div class="empty-state">Your gallery is ready for its first piece.</div></div>
+      </section>
+
+      <section id="dentistry" class="section-shell content-section dentistry-section">
+        <header class="section-heading"><div><p class="eyebrow">Knowledge in practice</p><h2>Dentistry desk</h2></div><p>A flexible place for cases, study subjects, continuing education, and reflections.</p></header>
+        <form id="dentistry-form" class="entry-form"><label>Topic<input id="dentistry-topic" required placeholder="e.g. Restorative dentistry" /></label><label>Note<textarea id="dentistry-note" required placeholder="Add a learning note or milestone"></textarea></label><button class="button primary" type="submit">Save note</button></form>
+        <div id="dentistry-notes" class="card-grid"></div>
+      </section>
+
+      <section id="diet" class="section-shell content-section">
+        <header class="section-heading"><div><p class="eyebrow">Nourish the whole person</p><h2>Daily diet log</h2></div><p>Record meals, water, and how the day felt. This is a personal log, not medical advice.</p></header>
+        <form id="diet-form" class="diet-form">
+          <label>Date<input id="diet-date" type="date" required /></label>
+          <label>Meal or note<input id="diet-meal" required placeholder="Lunch · grain bowl" /></label>
+          <label>Water (cups)<input id="diet-water" type="number" min="0" step="1" value="0" /></label>
+          <label>Energy<select id="diet-energy"><option>High</option><option selected>Steady</option><option>Low</option></select></label>
+          <button class="button primary" type="submit">Add entry</button>
+        </form>
+        <div id="diet-summary" class="summary-strip"></div>
+        <div id="diet-entries" class="entry-list"></div>
+      </section>
+
+      <section id="goals" class="section-shell content-section goals-section">
+        <header class="section-heading"><div><p class="eyebrow">Direction with intention</p><h2>Goal board</h2></div><p>Keep today’s next steps close to the bigger picture.</p></header>
+        <form id="goal-form" class="goal-form"><input id="goal-title" required placeholder="What do you want to accomplish?" /><select id="goal-area"><option>Art</option><option>Dentistry</option><option>Health</option><option>Personal</option></select><button class="button primary" type="submit">Add goal</button></form>
+        <div id="goal-board" class="goal-board"></div>
+      </section>
+
+      <section id="music" class="section-shell content-section">
+        <header class="section-heading"><div><p class="eyebrow">The listening room</p><h2>Music</h2></div><p>Add songs from your computer and play them while moving through the site.</p></header>
+        <input id="music-file-input" type="file" accept="audio/*" multiple hidden />
+        <div id="music-drop-zone" class="drop-zone music-drop" role="button" tabindex="0"><span>♫</span><div><strong>Drop music files here</strong><p>or select MP3, M4A, WAV, and other audio</p></div><button id="choose-music" class="button ghost" type="button">Choose music</button></div>
+        <div class="music-library"><div class="library-title"><h3>All music</h3><small id="track-count">0 songs</small></div><div id="track-list" class="track-list"><div class="empty-state">Add music to begin listening.</div></div></div>
+      </section>
+    </main>
+
+    <footer><strong>Rauny Ramirez</strong><span>Art · dentistry · nourishment · direction · sound</span></footer>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>

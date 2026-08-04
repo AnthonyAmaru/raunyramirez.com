@@ -27,12 +27,24 @@ nav a[aria-current="page"] { color:var(--ink); text-decoration:underline; text-d
 .cloud-status.connected { color:var(--ink); }
 .cloud-status.connected span { background:#62a071; box-shadow:0 0 0 4px color-mix(in srgb,#62a071 17%,transparent); }
 .menu-toggle { display:none; }
-.music-bar { position:sticky; z-index:45; top:var(--header); display:grid; grid-template-columns:1fr auto auto auto; min-height:64px; align-items:center; gap:9px; border-bottom:1px solid var(--line); background:color-mix(in srgb,var(--surface) 92%,transparent); padding:8px clamp(20px,5vw,72px); backdrop-filter:blur(18px); }
+.music-bar { position:sticky; z-index:45; top:var(--header); display:grid; grid-template-columns:1fr auto auto auto auto; min-height:64px; align-items:center; gap:9px; border-bottom:1px solid var(--line); background:color-mix(in srgb,var(--surface) 92%,transparent); padding:8px clamp(20px,5vw,72px); backdrop-filter:blur(18px); }
 .music-bar div { display:grid; min-width:0; }
 .music-bar span { color:var(--muted); font-size:.6rem; font-weight:700; letter-spacing:.13em; text-transform:uppercase; }
 .music-bar strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.8rem; }
 .music-bar button { width:34px; height:34px; border:0; border-radius:50%; }
 .music-bar .play-button { background:var(--ink); color:var(--canvas); }
+.music-bar .quick-ai-toggle { display:grid; width:36px; height:36px; place-items:center; border:1px solid var(--line); background:var(--canvas); color:var(--ink); font-size:.62rem; font-weight:800; }
+.music-bar .quick-ai-toggle[aria-expanded="true"] { border-color:var(--ink); background:var(--ink); color:var(--canvas); }
+.quick-ai-popover { position:absolute; top:calc(100% + 8px); right:clamp(20px,5vw,72px); width:min(390px,calc(100vw - 28px)); max-height:min(70vh,620px); overflow-y:auto; border:1px solid var(--line); border-radius:15px; background:var(--surface); box-shadow:var(--shadow); padding:14px; }
+.quick-ai-popover form { display:grid; gap:9px; }
+.music-bar .quick-ai-heading { display:flex; align-items:center; justify-content:space-between; }
+.quick-ai-heading strong { font-size:.8rem; }
+.music-bar .quick-ai-heading button { display:grid; width:30px; height:30px; place-items:center; border:0; background:transparent; color:var(--muted); font-size:1.15rem; }
+.quick-ai-popover select,.quick-ai-popover textarea { width:100%; border:1px solid var(--line); border-radius:10px; background:var(--canvas); color:var(--ink); font:inherit; }
+.quick-ai-popover select { min-height:40px; padding:0 10px; }
+.quick-ai-popover textarea { min-height:72px; max-height:180px; resize:vertical; padding:11px; line-height:1.4; }
+.quick-ai-popover .button { width:100%; min-height:42px; }
+.quick-ai-answer { margin-top:11px; border-top:1px solid var(--line); padding:13px 2px 2px; color:var(--ink); font-size:.82rem; line-height:1.55; white-space:pre-wrap; }
 .section-shell { width:min(1180px,calc(100% - 40px)); margin-inline:auto; }
 .hero { display:grid; grid-template-columns:1.08fr .92fr; min-height:680px; align-items:center; gap:7vw; padding-block:80px; }
 .eyebrow { margin:0 0 12px; color:var(--terracotta-dark); font-size:.68rem; font-weight:800; letter-spacing:.16em; text-transform:uppercase; }
@@ -274,26 +286,6 @@ body > footer { display:flex; width:min(1180px,calc(100% - 40px)); justify-conte
 .shopping-empty strong { color:var(--ink); }
 .shopping-empty span { font-size:.75rem; }
 
-/* AI */
-.ai-page-heading { display:flex; align-items:end; justify-content:space-between; gap:18px; }
-.ai-page-heading .button { margin-bottom:6px; }
-.ai-chat { display:grid; min-height:620px; grid-template-rows:auto 1fr auto; overflow:hidden; border:1px solid var(--line); border-radius:14px; background:var(--surface); }
-.ai-chat-heading { display:flex; align-items:center; gap:12px; border-bottom:1px solid var(--line); padding:16px 18px; }
-.ai-chat-heading h2 { margin:0 0 2px; font-size:1rem; }
-.ai-chat-heading small { color:var(--muted); font-size:.7rem; }
-.ai-avatar { display:grid; width:34px; height:34px; place-items:center; border-radius:10px; background:var(--ink); color:var(--canvas); font-size:.66rem; font-weight:800; }
-.ai-thread { display:flex; min-height:320px; flex-direction:column; gap:11px; overflow-y:auto; padding:22px; }
-.ai-empty { display:grid; min-height:100%; place-items:center; color:var(--muted); }
-.ai-message { max-width:min(78%,720px); border:1px solid var(--line); border-radius:13px 13px 13px 4px; background:var(--canvas); padding:12px 14px; line-height:1.5; white-space:pre-wrap; }
-.ai-message.user { align-self:flex-end; border-color:transparent; border-radius:13px 13px 4px 13px; background:var(--ink); color:var(--canvas); }
-.ai-message.thinking { color:var(--muted); font-style:italic; }
-.ai-message.error { border-color:#b84c4c; color:#a03838; }
-.ai-composer { display:grid; grid-template-columns:150px minmax(0,1fr) auto; align-items:end; gap:9px; border-top:1px solid var(--line); background:var(--canvas); padding:13px; }
-.ai-composer select,.ai-composer textarea { width:100%; border:1px solid var(--line); border-radius:10px; background:var(--surface); color:var(--ink); font:inherit; }
-.ai-composer select { min-height:48px; padding:0 12px; }
-.ai-composer textarea { min-height:48px; max-height:180px; resize:vertical; padding:12px; }
-.ai-composer .button { min-height:48px; }
-
 @media (max-width:900px) {
   .shopping-layout { grid-template-columns:190px minmax(0,1fr); }
   .shopping-store-strip { grid-template-columns:repeat(2,minmax(0,1fr)); }
@@ -309,10 +301,6 @@ body > footer { display:flex; width:min(1180px,calc(100% - 40px)); justify-conte
   .catalog-toolbar { grid-template-columns:1fr 138px; }
   .education-card { grid-template-columns:auto 1fr; }
   .education-card time { grid-column:2; }
-  .ai-chat { min-height:calc(100svh - 250px); }
-  .ai-composer { grid-template-columns:1fr auto; }
-  .ai-composer > label:first-child { grid-column:1/-1; }
-  .ai-message { max-width:92%; }
 }
 
 @media (max-width:480px) {
@@ -323,8 +311,5 @@ body > footer { display:flex; width:min(1180px,calc(100% - 40px)); justify-conte
   .product-card-body { min-height:166px; padding:11px; }
   .product-card-body h2 { font-size:.82rem; }
   .education-card { padding:15px; }
-  .ai-thread { padding:15px; }
-  .ai-composer { grid-template-columns:1fr; }
-  .ai-composer > * { grid-column:1; }
-  .ai-page-heading { align-items:center; }
+  .quick-ai-popover { right:14px; }
 }

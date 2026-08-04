@@ -6,7 +6,6 @@ const CLOUD_CONTENT_KEYS = { [KEYS.dentistry]: "dentistry", [KEYS.goals]: "goals
 const PRIMARY_NAV_ITEMS = [
   ["resume.html", "Resume"],
   ["interests.html", "Interests"],
-  ["ai.html", "AI"],
   ["music.html", "Music"],
   ["goals.html", "Goals"],
 ];
@@ -38,7 +37,6 @@ let lastPencilTap = null;
 let shoppingProducts = [];
 let shoppingStore = "all";
 let shoppingCategory = "all";
-let raunyAiMessages = [];
 
 function read(key) {
   try { return JSON.parse(localStorage.getItem(key)) || []; } catch { return []; }
@@ -240,36 +238,63 @@ async function initializeShopping() {
   $("#shopping-sort").addEventListener("change", () => renderShoppingProducts());
 }
 
-function renderRaunyAi() {
-  const thread = $("#rauny-ai-thread");
-  if (!thread) return;
-  thread.innerHTML = raunyAiMessages.length ? raunyAiMessages.map((message) => `<article class="ai-message ${message.role}"><span>${message.role === "user" ? "You" : "AI"}</span><p>${escapeHtml(message.content)}</p></article>`).join("") : '<div class="ai-empty"><strong>Ask anything</strong></div>';
-  thread.scrollTop = thread.scrollHeight;
+function installQuickAi() {
+  const bar = $("#music-bar");
+  if (!bar || $("#quick-ai-toggle")) return;
+  bar.insertAdjacentHTML("beforeend", `
+    <button id="quick-ai-toggle" class="quick-ai-toggle" type="button" aria-label="Ask AI" aria-expanded="false" aria-controls="quick-ai-popover">AI</button>
+    <div id="quick-ai-popover" class="quick-ai-popover" hidden>
+      <form id="quick-ai-form">
+        <div class="quick-ai-heading"><strong>Ask AI</strong><button id="quick-ai-close" type="button" aria-label="Close AI">×</button></div>
+        <select id="quick-ai-topic" aria-label="AI topic"><option>General</option><option>Art</option><option>Dentistry</option><option>Travel</option><option>Books</option><option>Shopping</option><option>Music</option><option>Goals</option></select>
+        <textarea id="quick-ai-input" rows="2" maxlength="8000" placeholder="Ask one question" aria-label="Question for AI" required></textarea>
+        <button id="quick-ai-send" class="button primary" type="submit">Ask</button>
+      </form>
+      <div id="quick-ai-answer" class="quick-ai-answer" role="status" aria-live="polite" hidden></div>
+    </div>`);
 }
 
-async function askRaunyAi(event) {
+function toggleQuickAi(force) {
+  const popover = $("#quick-ai-popover");
+  const toggle = $("#quick-ai-toggle");
+  const open = typeof force === "boolean" ? force : popover.hidden;
+  popover.hidden = !open;
+  toggle.setAttribute("aria-expanded", String(open));
+  if (open) requestAnimationFrame(() => $("#quick-ai-input").focus());
+}
+
+async function invokeRaunyAi(body) {
+  try {
+    return await musicCloud.invokeFunction("big-pickle", body);
+  } catch (error) {
+    if (error.status !== 401) throw error;
+    await musicCloud.signOut();
+    cloudAdminPassword = null;
+    updateCloudStatus();
+    if (!(await ensureCloudAdmin())) throw new Error("Administrator sign-in is required.");
+    return musicCloud.invokeFunction("big-pickle", body);
+  }
+}
+
+async function askQuickAi(event) {
   event.preventDefault();
-  const input = $("#rauny-ai-input");
+  const input = $("#quick-ai-input");
   const question = input.value.trim();
   if (!question || !(await ensureCloudAdmin())) return;
-  const topic = $("#rauny-ai-topic").value;
-  const history = raunyAiMessages.slice(-10);
-  raunyAiMessages.push({ role: "user", content: question });
-  input.value = "";
-  renderRaunyAi();
-  const send = $("#rauny-ai-send");
+  const topic = $("#quick-ai-topic").value;
+  const answer = $("#quick-ai-answer");
+  const send = $("#quick-ai-send");
+  answer.hidden = false;
+  answer.textContent = "Thinking…";
   send.disabled = true;
-  send.textContent = "Thinking…";
   try {
-    const result = await musicCloud.invokeFunction("big-pickle", { scope: "rauny", topic, message: question, history });
+    const result = await invokeRaunyAi({ scope: "rauny", topic, message: question });
     if (typeof result.content !== "string") throw new Error("The AI response was empty.");
-    raunyAiMessages.push({ role: "assistant", content: result.content.trim() });
+    answer.textContent = result.content.trim();
   } catch (error) {
-    raunyAiMessages.push({ role: "assistant", content: `I couldn't answer that: ${error.message}` });
+    answer.textContent = `I couldn't answer that: ${error.message}`;
   } finally {
     send.disabled = false;
-    send.textContent = "Ask";
-    renderRaunyAi();
     input.focus();
   }
 }
@@ -634,6 +659,7 @@ function bindDropZone(zoneSelector, inputSelector, chooseSelector, handler) {
   input.addEventListener("change", (event) => { handler([...event.target.files]); event.target.value = ""; });
 }
 
+installQuickAi();
 normalizePrimaryNavigation();
 $("#menu-toggle").addEventListener("click", () => { const nav = $("#primary-nav"); nav.classList.toggle("open"); $("#menu-toggle").setAttribute("aria-expanded", String(nav.classList.contains("open"))); });
 $$('#primary-nav a').forEach((link) => link.addEventListener("click", () => $("#primary-nav").classList.remove("open")));
@@ -675,9 +701,18 @@ $("#select-all-tracks")?.addEventListener("change", (event) => {
   updateTrackSelectionControls();
 });
 $("#delete-selected-tracks")?.addEventListener("click", deleteSelectedTracks);
-$("#rauny-ai-form")?.addEventListener("submit", askRaunyAi);
-$("#rauny-ai-clear")?.addEventListener("click", () => { raunyAiMessages = []; renderRaunyAi(); });
-$("#rauny-ai-input")?.addEventListener("keydown", (event) => { if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) event.currentTarget.form.requestSubmit(); });
+$("#quick-ai-toggle").addEventListener("click", () => toggleQuickAi());
+$("#quick-ai-close").addEventListener("click", () => toggleQuickAi(false));
+$("#quick-ai-form").addEventListener("submit", askQuickAi);
+$("#quick-ai-input").addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+  event.preventDefault();
+  event.currentTarget.form.requestSubmit();
+});
+document.addEventListener("click", (event) => {
+  if (!$("#quick-ai-popover").hidden && !event.target.closest("#quick-ai-popover") && !event.target.closest("#quick-ai-toggle")) toggleQuickAi(false);
+});
+document.addEventListener("keydown", (event) => { if (event.key === "Escape" && !$("#quick-ai-popover").hidden) toggleQuickAi(false); });
 $("#toggle-track").addEventListener("click", () => { const player = $("#audio-player"); if (!player.src && tracks.length) return playTrack(tracks[0].id); if (player.paused) player.play(); else player.pause(); });
 $("#previous-track").addEventListener("click", () => stepTrack(-1));
 $("#next-track").addEventListener("click", () => stepTrack(1));
@@ -688,5 +723,5 @@ $("#audio-player").addEventListener("ended", () => stepTrack(1));
 bindDropZone("#art-drop-zone", "#art-file-input", "#choose-art", addArtFiles);
 bindDropZone("#music-drop-zone", "#music-file-input", "#choose-music", addMusicFiles);
 applyTheme(localStorage.getItem(KEYS.theme) || "light");
-initializeDrawingStudio(); renderDentistry(); renderGoals(); renderArt(); renderMusic(); initializeShopping(); renderRaunyAi(); updateCloudStatus();
+initializeDrawingStudio(); renderDentistry(); renderGoals(); renderArt(); renderMusic(); initializeShopping(); updateCloudStatus();
 if (musicCloud.isSignedIn()) syncRaunyWorkspace();

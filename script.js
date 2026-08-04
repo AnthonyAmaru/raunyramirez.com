@@ -1,6 +1,6 @@
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const KEYS = { theme: "rauny_theme", dentistry: "rauny_dentistry_notes", goals: "rauny_goal_board" };
+const KEYS = { theme: "rauny_theme", dentistry: "rauny_dentistry_notes", dentistryAttempts: "rauny_dentistry_attempts", goals: "rauny_goal_board" };
 const CLOUD_ADMIN_EMAIL = "anthonyamaru93@gmail.com";
 const CLOUD_CONTENT_KEYS = { [KEYS.dentistry]: "dentistry", [KEYS.goals]: "goals" };
 const PRIMARY_NAV_ITEMS = [
@@ -37,6 +37,8 @@ let lastPencilTap = null;
 let shoppingProducts = [];
 let shoppingStore = "all";
 let shoppingCategory = "all";
+let activeDentistryQuestions = [];
+let activeDentistryTestMode = "quiz";
 
 function read(key) {
   try { return JSON.parse(localStorage.getItem(key)) || []; } catch { return []; }
@@ -59,7 +61,7 @@ function normalizePrimaryNavigation() {
   const nav = $("#primary-nav");
   if (!nav) return;
   let currentPage = location.pathname.split("/").pop() || "index.html";
-  if (["art.html", "travel.html", "books.html", "shopping.html"].includes(currentPage)) currentPage = "interests.html";
+  if (["art.html", "dentistry.html", "travel.html", "books.html", "shopping.html"].includes(currentPage)) currentPage = "interests.html";
   nav.innerHTML = PRIMARY_NAV_ITEMS.map(([href, label]) => `<a href="${href}"${currentPage === href ? ' aria-current="page"' : ""}>${label}</a>`).join("");
 }
 
@@ -100,6 +102,7 @@ async function syncRaunyWorkspace() {
   if (!musicCloud.isSignedIn()) return updateCloudStatus();
   try {
     await Promise.all(Object.keys(CLOUD_CONTENT_KEYS).map(syncCloudList));
+    if ($("#dentistry-study-cards")) await syncDentistryHistory();
     await migrateLocalArtwork();
     renderDentistry(); renderGoals();
     await renderArt();
@@ -138,6 +141,164 @@ function renderDentistry() {
   if (!$("#dentistry-notes")) return;
   const notes = read(KEYS.dentistry);
   $("#dentistry-notes").innerHTML = notes.length ? notes.map((note) => `<article class="note-card"><span>${escapeHtml(note.date)}</span><button class="delete-button" data-delete-note="${note.id}" aria-label="Delete ${escapeHtml(note.topic)}">×</button><h3>${escapeHtml(note.topic)}</h3><p>${escapeHtml(note.note)}</p></article>`).join("") : '<div class="empty-state">No notes yet</div>';
+}
+
+function dentistryQuestions() { return Array.isArray(window.DENTISTRY_QUESTIONS) ? window.DENTISTRY_QUESTIONS : []; }
+function dentistryStudyItems() { return Array.isArray(window.DENTISTRY_STUDY_ITEMS) ? window.DENTISTRY_STUDY_ITEMS : []; }
+function shuffle(items) {
+  const copy = [...items];
+  for (let index = copy.length - 1; index > 0; index -= 1) {
+    const target = Math.floor(Math.random() * (index + 1));
+    [copy[index], copy[target]] = [copy[target], copy[index]];
+  }
+  return copy;
+}
+
+function openDentistryPdf(page = 1) {
+  const drawer = $("#dentistry-pdf-drawer");
+  const backdrop = $("#dentistry-pdf-backdrop");
+  const frame = $("#dentistry-pdf-frame");
+  if (!drawer || !backdrop || !frame) return;
+  frame.src = `output/pdf/Dentistry_Study_Reference.pdf#page=${Math.max(1, Number(page) || 1)}&view=FitH`;
+  drawer.hidden = false;
+  backdrop.hidden = false;
+  drawer.setAttribute("aria-hidden", "false");
+  document.body.classList.add("pdf-drawer-open");
+  $("#dentistry-pdf-close").focus();
+}
+
+function closeDentistryPdf() {
+  const drawer = $("#dentistry-pdf-drawer");
+  const backdrop = $("#dentistry-pdf-backdrop");
+  if (!drawer || !backdrop) return;
+  drawer.hidden = true;
+  backdrop.hidden = true;
+  drawer.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("pdf-drawer-open");
+}
+
+function renderDentistryStudy() {
+  const grid = $("#dentistry-study-cards");
+  if (!grid) return;
+  const topic = $("#dentistry-topic-filter")?.value || "all";
+  const query = $("#dentistry-study-search")?.value.trim().toLocaleLowerCase() || "";
+  const items = dentistryStudyItems().filter((item) => {
+    const matchesTopic = topic === "all" || item.topic === topic;
+    const haystack = `${item.term} ${item.definition} ${item.source}`.toLocaleLowerCase();
+    return matchesTopic && (!query || haystack.includes(query));
+  });
+  grid.innerHTML = items.length ? items.map((item) => `<article class="dentistry-study-card"><span>${escapeHtml(item.topic)}</span><h2>${escapeHtml(item.term)}</h2><p>${escapeHtml(item.definition)}</p><button class="source-button" type="button" data-open-dentistry-pdf="${item.refPage}">${escapeHtml(item.source)} · PDF ${item.refPage}</button></article>`).join("") : '<div class="empty-state">No matches</div>';
+}
+
+function dentistryAttempts() { return read(KEYS.dentistryAttempts); }
+
+function renderDentistryHistory() {
+  const history = $("#dentistry-history");
+  if (!history) return;
+  const attempts = dentistryAttempts();
+  $("#dentistry-attempt-count").textContent = String(attempts.length);
+  $("#dentistry-last-score").textContent = attempts.length ? `${Math.round(Number(attempts[0].percent))}%` : "—";
+  history.innerHTML = attempts.length ? attempts.slice(0, 20).map((attempt) => {
+    const wrong = Array.isArray(attempt.wrong_answers) ? attempt.wrong_answers : [];
+    const date = new Date(attempt.completed_at || Date.now());
+    const details = wrong.length ? `<details><summary>${wrong.length} wrong</summary><ol>${wrong.map((item) => `<li><strong>${escapeHtml(item.q)}</strong><span>Your answer: ${escapeHtml(item.selected || "No answer")}</span><span>Correct: ${escapeHtml(item.correct)}</span><button type="button" data-open-dentistry-pdf="${Number(item.refPage) || 1}">${escapeHtml(item.source || "Open PDF")}</button></li>`).join("")}</ol></details>` : '<span class="dentistry-perfect">Perfect</span>';
+    return `<article class="dentistry-history-row"><div><strong>${Math.round(Number(attempt.percent))}%</strong><span>${escapeHtml(attempt.mode === "test" ? "Test" : "Quiz")} · ${Number(attempt.correct)}/${Number(attempt.total)} · ${escapeHtml(date.toLocaleDateString())}</span></div>${details}</article>`;
+  }).join("") : '<div class="empty-state">No attempts yet</div>';
+}
+
+async function syncDentistryHistory() {
+  if (!musicCloud.isSignedIn()) return renderDentistryHistory();
+  const attempts = await musicCloud.listTestAttempts("dentistry", 30);
+  write(KEYS.dentistryAttempts, attempts);
+  renderDentistryHistory();
+}
+
+function showDentistryStudy() {
+  const studyPanel = $("#dentistry-study-panel");
+  const testPanel = $("#dentistry-test-panel");
+  if (!studyPanel || !testPanel) return;
+  studyPanel.hidden = false;
+  testPanel.hidden = true;
+  $$('[data-dentistry-mode="study"]').forEach((button) => button.setAttribute("aria-pressed", "true"));
+  $$('[data-dentistry-test]').forEach((button) => button.setAttribute("aria-pressed", "false"));
+}
+
+function renderDentistryTest() {
+  const container = $("#dentistry-test-questions");
+  if (!container) return;
+  container.innerHTML = activeDentistryQuestions.map((question, questionIndex) => `<fieldset class="dentistry-question" data-question-id="${question.id}"><legend><span>${questionIndex + 1}</span>${escapeHtml(question.q)}</legend><div class="dentistry-options">${question.opts.map((option, optionIndex) => `<label><input type="radio" name="${question.id}" value="${optionIndex}" /><span>${escapeHtml(option)}</span></label>`).join("")}</div><div class="dentistry-feedback" hidden></div></fieldset>`).join("");
+  $("#dentistry-test-result").hidden = true;
+  $("#dentistry-check-test").hidden = false;
+  $("#dentistry-test-progress").textContent = `${activeDentistryQuestions.length} questions`;
+  $("#dentistry-test-title").textContent = activeDentistryTestMode === "test" ? "Test 25" : "Quiz 10";
+}
+
+async function startDentistryTest(count) {
+  if (!(await ensureCloudAdmin())) return;
+  activeDentistryQuestions = shuffle(dentistryQuestions()).slice(0, Math.min(count, dentistryQuestions().length));
+  activeDentistryTestMode = count > 10 ? "test" : "quiz";
+  $("#dentistry-study-panel").hidden = true;
+  $("#dentistry-test-panel").hidden = false;
+  $$('[data-dentistry-mode="study"]').forEach((button) => button.setAttribute("aria-pressed", "false"));
+  $$('[data-dentistry-test]').forEach((button) => button.setAttribute("aria-pressed", String(Number(button.dataset.dentistryTest) === count)));
+  renderDentistryTest();
+  $("#dentistry-test-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function gradeDentistryTest(event) {
+  event.preventDefault();
+  if (!activeDentistryQuestions.length) return;
+  const form = new FormData(event.currentTarget);
+  let correct = 0;
+  const wrongAnswers = [];
+  activeDentistryQuestions.forEach((question) => {
+    const selectedIndex = form.has(question.id) ? Number(form.get(question.id)) : -1;
+    const fieldset = $(`[data-question-id="${question.id}"]`);
+    const optionLabels = $$(`.dentistry-options label`, fieldset);
+    optionLabels.forEach((label, index) => {
+      label.classList.toggle("correct", index === question.ans);
+      label.classList.toggle("incorrect", index === selectedIndex && selectedIndex !== question.ans);
+      $("input", label).disabled = true;
+    });
+    const feedback = $(".dentistry-feedback", fieldset);
+    feedback.hidden = false;
+    feedback.innerHTML = `<strong>${selectedIndex === question.ans ? "Correct" : "Review"}</strong><p>${escapeHtml(question.exp)}</p><button type="button" data-open-dentistry-pdf="${question.refPage}">${escapeHtml(question.source)} · PDF ${question.refPage}</button>`;
+    if (selectedIndex === question.ans) correct += 1;
+    else wrongAnswers.push({ id: question.id, q: question.q, selected: selectedIndex >= 0 ? question.opts[selectedIndex] : "No answer", correct: question.opts[question.ans], source: question.source, refPage: question.refPage });
+  });
+  const total = activeDentistryQuestions.length;
+  const percent = Math.round((correct / total) * 100);
+  const completedAt = new Date().toISOString();
+  const attempt = { subject: "dentistry", mode: activeDentistryTestMode, section: "mixed", correct, total, percent, wrong_answers: wrongAnswers, completed_at: completedAt };
+  const attempts = dentistryAttempts();
+  attempts.unshift(attempt);
+  write(KEYS.dentistryAttempts, attempts.slice(0, 30));
+  renderDentistryHistory();
+  const result = $("#dentistry-test-result");
+  result.hidden = false;
+  result.innerHTML = `<strong>${percent}%</strong><span>${correct}/${total}</span><button class="button ghost" type="button" data-dentistry-retry="${total}">Again</button>`;
+  $("#dentistry-check-test").hidden = true;
+  try {
+    const saved = await musicCloud.saveTestAttempt(attempt);
+    if (saved?.id) {
+      const local = dentistryAttempts();
+      local[0] = saved;
+      write(KEYS.dentistryAttempts, local);
+      renderDentistryHistory();
+    }
+    toast("Dentistry result synced.");
+  } catch (error) { toast(`Result saved on this device; cloud sync failed: ${error.message}`); }
+  result.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function initializeDentistryStudy() {
+  if (!$("#dentistry-study-cards")) return;
+  const questions = dentistryQuestions();
+  $("#dentistry-question-count").textContent = String(questions.length);
+  const topics = [...new Set(dentistryStudyItems().map((item) => item.topic))];
+  $("#dentistry-topic-filter").insertAdjacentHTML("beforeend", topics.map((topic) => `<option value="${escapeHtml(topic)}">${escapeHtml(topic)}</option>`).join(""));
+  renderDentistryStudy();
+  renderDentistryHistory();
 }
 
 function renderGoals() {
@@ -710,9 +871,17 @@ $("#quick-ai-input").addEventListener("keydown", (event) => {
   event.currentTarget.form.requestSubmit();
 });
 document.addEventListener("click", (event) => {
+  const pdfButton = event.target.closest("[data-open-dentistry-pdf]");
+  const retryButton = event.target.closest("[data-dentistry-retry]");
+  if (pdfButton) openDentistryPdf(pdfButton.dataset.openDentistryPdf);
+  if (retryButton) startDentistryTest(Number(retryButton.dataset.dentistryRetry));
   if (!$("#quick-ai-popover").hidden && !event.target.closest("#quick-ai-popover") && !event.target.closest("#quick-ai-toggle")) toggleQuickAi(false);
 });
-document.addEventListener("keydown", (event) => { if (event.key === "Escape" && !$("#quick-ai-popover").hidden) toggleQuickAi(false); });
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  if (!$("#quick-ai-popover").hidden) toggleQuickAi(false);
+  if ($("#dentistry-pdf-drawer") && !$("#dentistry-pdf-drawer").hidden) closeDentistryPdf();
+});
 $("#toggle-track").addEventListener("click", () => { const player = $("#audio-player"); if (!player.src && tracks.length) return playTrack(tracks[0].id); if (player.paused) player.play(); else player.pause(); });
 $("#previous-track").addEventListener("click", () => stepTrack(-1));
 $("#next-track").addEventListener("click", () => stepTrack(1));
@@ -722,6 +891,13 @@ $("#audio-player").addEventListener("ended", () => stepTrack(1));
 
 bindDropZone("#art-drop-zone", "#art-file-input", "#choose-art", addArtFiles);
 bindDropZone("#music-drop-zone", "#music-file-input", "#choose-music", addMusicFiles);
+$("#dentistry-topic-filter")?.addEventListener("change", renderDentistryStudy);
+$("#dentistry-study-search")?.addEventListener("input", renderDentistryStudy);
+$$("[data-dentistry-mode='study']").forEach((button) => button.addEventListener("click", showDentistryStudy));
+$$("[data-dentistry-test]").forEach((button) => button.addEventListener("click", () => startDentistryTest(Number(button.dataset.dentistryTest))));
+$("#dentistry-test-form")?.addEventListener("submit", gradeDentistryTest);
+$("#dentistry-pdf-close")?.addEventListener("click", closeDentistryPdf);
+$("#dentistry-pdf-backdrop")?.addEventListener("click", closeDentistryPdf);
 applyTheme(localStorage.getItem(KEYS.theme) || "light");
-initializeDrawingStudio(); renderDentistry(); renderGoals(); renderArt(); renderMusic(); initializeShopping(); updateCloudStatus();
+initializeDrawingStudio(); initializeDentistryStudy(); renderDentistry(); renderGoals(); renderArt(); renderMusic(); initializeShopping(); updateCloudStatus();
 if (musicCloud.isSignedIn()) syncRaunyWorkspace();

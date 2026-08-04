@@ -5,6 +5,7 @@
 }
 [data-theme="dark"] { --canvas:#11161c; --surface:#1c242d; --ink:#f1f4f6; --muted:#aab3bc; --line:rgba(235,241,246,.13); --terracotta:#65a7d0; --terracotta-dark:#9bc8e3; --rose:#2c343c; --sage:#293844; --sun:#383936; --blue:#273a48; --shadow:0 18px 50px rgba(0,0,0,.28); }
 * { box-sizing: border-box; }
+[hidden] { display:none !important; }
 html { scroll-behavior: smooth; scroll-padding-top: 150px; }
 body { margin: 0; background: var(--canvas); color: var(--ink); font-family: "DM Sans", sans-serif; line-height: 1.55; transition: background .25s,color .25s; }
 button,input,textarea,select { font: inherit; }
@@ -218,6 +219,68 @@ body > footer { display:flex; width:min(1180px,calc(100% - 40px)); justify-conte
 .goal-card { background:var(--surface); }
 .music-drop { background:var(--surface); }
 
+/* Dentistry study */
+.pdf-drawer-open { overflow:hidden; }
+.dentistry-study { max-width:980px; }
+.dentistry-header { display:flex; align-items:center; justify-content:space-between; gap:20px; margin-bottom:22px; }
+.dentistry-header h1 { margin:0; font-size:clamp(2.7rem,6vw,5.4rem); }
+.dentistry-mode-bar { display:grid; grid-template-columns:repeat(3,1fr); overflow:hidden; border:1px solid var(--line); border-radius:13px; background:var(--surface); }
+.dentistry-mode-bar button { min-height:54px; border:0; border-right:1px solid var(--line); background:transparent; color:var(--muted); cursor:pointer; font-weight:800; }
+.dentistry-mode-bar button:last-child { border-right:0; }
+.dentistry-mode-bar button[aria-pressed="true"] { background:var(--ink); color:var(--canvas); }
+.dentistry-stats { display:grid; grid-template-columns:repeat(3,1fr); margin:12px 0 28px; border:1px solid var(--line); border-radius:13px; background:var(--surface); }
+.dentistry-stats > span { display:grid; min-height:76px; place-content:center; border-right:1px solid var(--line); text-align:center; }
+.dentistry-stats > span:last-child { border-right:0; }
+.dentistry-stats small { color:var(--muted); font-size:.6rem; font-weight:800; letter-spacing:.09em; text-transform:uppercase; }
+.dentistry-stats strong { font-size:1.1rem; }
+.dentistry-controls { display:grid; grid-template-columns:220px 1fr; gap:9px; margin-bottom:12px; }
+.dentistry-controls select,.dentistry-controls input { min-height:46px; border-radius:11px; background:var(--surface); }
+.dentistry-study-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.dentistry-study-card { display:grid; min-height:220px; align-content:start; border:1px solid var(--line); border-radius:13px; background:var(--surface); padding:19px; }
+.dentistry-study-card > span { color:var(--terracotta-dark); font-size:.61rem; font-weight:850; letter-spacing:.08em; text-transform:uppercase; }
+.dentistry-study-card h2 { margin:15px 0 10px; font-size:1rem; line-height:1.3; }
+.dentistry-study-card p { margin:0 0 18px; color:var(--muted); font-size:.78rem; }
+.source-button,.dentistry-feedback button,.dentistry-history-row details button { width:max-content; max-width:100%; margin-top:auto; overflow:hidden; border:0; background:transparent; color:var(--terracotta-dark); padding:0; cursor:pointer; font-size:.64rem; font-weight:800; text-align:left; text-overflow:ellipsis; white-space:nowrap; }
+.dentistry-test-heading { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; border:1px solid var(--line); border-radius:12px; background:var(--surface); padding:16px 18px; }
+.dentistry-test-heading span { color:var(--muted); font-size:.7rem; font-weight:700; }
+.dentistry-question { margin:0 0 10px; border:1px solid var(--line); border-radius:13px; background:var(--surface); padding:18px; }
+.dentistry-question legend { display:flex; align-items:flex-start; gap:10px; padding:0 5px; font-size:.88rem; font-weight:800; }
+.dentistry-question legend span { display:grid; width:24px; height:24px; flex:0 0 auto; place-items:center; border-radius:50%; background:var(--ink); color:var(--canvas); font-size:.63rem; }
+.dentistry-options { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:14px; }
+.dentistry-options label { display:flex; min-height:48px; align-items:center; gap:9px; border:1px solid var(--line); border-radius:10px; padding:9px 11px; cursor:pointer; font-size:.74rem; }
+.dentistry-options input { width:17px; height:17px; flex:0 0 auto; margin:0; accent-color:var(--ink); }
+.dentistry-options label:has(input:checked) { border-color:var(--ink); }
+.dentistry-options label.correct { border-color:#4d8a60; background:color-mix(in srgb,#65a978 14%,var(--surface)); }
+.dentistry-options label.incorrect { border-color:#ad4a4a; background:color-mix(in srgb,#d85c5c 12%,var(--surface)); }
+.dentistry-feedback { margin-top:12px; border-top:1px solid var(--line); padding:12px 3px 1px; }
+.dentistry-feedback strong { font-size:.72rem; }
+.dentistry-feedback p { margin:4px 0 8px; color:var(--muted); font-size:.73rem; }
+#dentistry-check-test { width:100%; margin-top:5px; }
+.dentistry-result { display:flex; align-items:center; justify-content:center; gap:14px; margin-top:12px; border:1px solid var(--line); border-radius:13px; background:var(--surface); padding:20px; }
+.dentistry-result > strong { font-size:2rem; }
+.dentistry-result > span { color:var(--muted); font-weight:700; }
+.dentistry-history-section { margin-top:40px; }
+.dentistry-history-section > h2 { margin:0 0 12px; font-size:1.45rem; }
+.dentistry-history { display:grid; gap:8px; }
+.dentistry-history-row { display:grid; grid-template-columns:220px 1fr; align-items:start; gap:18px; border:1px solid var(--line); border-radius:12px; background:var(--surface); padding:14px 16px; }
+.dentistry-history-row > div { display:flex; align-items:center; gap:12px; }
+.dentistry-history-row > div > strong { min-width:52px; font-size:1.3rem; }
+.dentistry-history-row > div > span { color:var(--muted); font-size:.69rem; }
+.dentistry-history-row details summary { color:var(--muted); cursor:pointer; font-size:.7rem; font-weight:750; }
+.dentistry-history-row ol { display:grid; gap:10px; margin:12px 0 0; padding-left:18px; }
+.dentistry-history-row li { padding-left:5px; font-size:.7rem; }
+.dentistry-history-row li > * { display:block; margin-bottom:3px; }
+.dentistry-history-row li span { color:var(--muted); }
+.dentistry-perfect { justify-self:end; color:#4d8a60; font-size:.72rem; font-weight:800; }
+.dentistry-notes-panel { margin-top:40px; border-top:1px solid var(--line); padding-top:16px; }
+.dentistry-notes-panel > summary { width:max-content; cursor:pointer; color:var(--muted); font-size:.75rem; font-weight:800; }
+.dentistry-notes-panel .entry-form { margin-top:15px; }
+.dentistry-pdf-backdrop { position:fixed; z-index:79; inset:0; background:rgba(8,13,18,.52); backdrop-filter:blur(3px); }
+.dentistry-pdf-drawer { position:fixed; z-index:80; top:0; right:0; bottom:0; display:grid; width:min(720px,94vw); grid-template-rows:auto 1fr; border-left:1px solid var(--line); background:var(--surface); box-shadow:-20px 0 60px rgba(0,0,0,.25); }
+.dentistry-pdf-drawer header { display:flex; min-height:64px; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); padding:0 18px; }
+.dentistry-pdf-drawer header button { display:grid; width:38px; height:38px; place-items:center; border:1px solid var(--line); border-radius:50%; background:var(--canvas); color:var(--ink); cursor:pointer; font-size:1.25rem; }
+.dentistry-pdf-drawer iframe { width:100%; height:100%; border:0; background:#fff; }
+
 @media (max-width:600px) {
   .home-launch { min-height:calc(100svh - 134px); padding-block:36px; }
   .launch-grid { grid-template-columns:1fr; }
@@ -229,6 +292,11 @@ body > footer { display:flex; width:min(1180px,calc(100% - 40px)); justify-conte
   .library-title { align-items:flex-start; gap:16px; }
   .library-actions { flex-wrap:wrap; justify-content:flex-end; }
   .library-actions small { width:100%; text-align:right; }
+  .dentistry-controls,.dentistry-study-grid,.dentistry-options { grid-template-columns:1fr; }
+  .dentistry-study-card { min-height:0; }
+  .dentistry-history-row { grid-template-columns:1fr; gap:9px; }
+  .dentistry-perfect { justify-self:start; }
+  .dentistry-pdf-drawer { width:100vw; }
 }
 
 /* Resume */

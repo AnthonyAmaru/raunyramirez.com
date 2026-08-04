@@ -140,6 +140,22 @@
       }));
     }
 
+    async listTestAttempts(subject, limit = 30) {
+      this.requireAdmin();
+      const url = `${PROJECT_URL}/rest/v1/test_attempts?select=id,subject,mode,section,correct,total,percent,wrong_answers,completed_at&site=eq.rauny&subject=eq.${encodeURIComponent(subject)}&order=completed_at.desc&limit=${Number(limit)}`;
+      return (await readResponse(await fetch(url, { headers: this.headers({}, true) }))) || [];
+    }
+
+    async saveTestAttempt(attempt) {
+      this.requireAdmin();
+      const rows = await readResponse(await fetch(`${PROJECT_URL}/rest/v1/test_attempts`, {
+        method: "POST",
+        headers: this.headers({ "Content-Type": "application/json", Prefer: "return=representation" }, true),
+        body: JSON.stringify({ ...attempt, user_id: this.user.id, site: "rauny" }),
+      }));
+      return rows?.[0];
+    }
+
     async getContent(site, contentKey) {
       this.requireAdmin();
       const url = `${PROJECT_URL}/rest/v1/site_content?select=value,updated_at&site=eq.${encodeURIComponent(site)}&content_key=eq.${encodeURIComponent(contentKey)}&limit=1`;

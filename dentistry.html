@@ -1,14 +1,92 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="theme-color" content="#f2f4f6" /><meta name="description" content="Rauny Ramirez — dentistry notes." /><title>Dentistry · Rauny Ramirez</title>
-    <link rel="icon" href="favicon.ico" sizes="any" /><link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" /><link rel="icon" href="favicon-16.png" type="image/png" sizes="16x16" /><link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180" /><link rel="manifest" href="site.webmanifest" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin /><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" /><link rel="stylesheet" href="styles.css?v=20260803-ai2" /><script src="music-cloud.js?v=20260803-ai2" defer></script><script src="script.js?v=20260803-ai2" defer></script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f2f4f6" />
+    <meta name="description" content="Rauny Ramirez — dentistry study, quizzes, and referenced notes." />
+    <title>Dentistry · Rauny Ramirez</title>
+    <link rel="icon" href="favicon.ico" sizes="any" />
+    <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="icon" href="favicon-16.png" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180" />
+    <link rel="manifest" href="site.webmanifest" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css?v=20260803-dentistry1" />
+    <script src="dentistry_questions.js?v=20260803-dentistry1" defer></script>
+    <script src="music-cloud.js?v=20260803-dentistry1" defer></script>
+    <script src="script.js?v=20260803-dentistry1" defer></script>
   </head>
   <body>
-    <a class="skip-link" href="#main-content">Skip to content</a><header class="site-header"><a class="brand" href="index.html" aria-label="Rauny Ramirez home"><img src="logo.png" alt="" /><strong>Rauny Ramirez</strong></a><button id="menu-toggle" class="icon-button menu-toggle" type="button" aria-label="Open menu" aria-expanded="false">☰</button><nav id="primary-nav" aria-label="Primary navigation"><a href="resume.html">Resume</a><a href="interests.html">Interests</a><a href="music.html">Music</a><a href="goals.html">Goals</a></nav><button id="cloud-status" class="cloud-status" type="button"><span></span>Cloud locked</button><button id="theme-toggle" class="icon-button" type="button" aria-label="Switch color theme">☾</button></header>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="Rauny Ramirez home"><img src="logo.png" alt="" /><strong>Rauny Ramirez</strong></a>
+      <button id="menu-toggle" class="icon-button menu-toggle" type="button" aria-label="Open menu" aria-expanded="false">☰</button>
+      <nav id="primary-nav" aria-label="Primary navigation"><a href="resume.html">Resume</a><a href="interests.html" aria-current="page">Interests</a><a href="music.html">Music</a><a href="goals.html">Goals</a></nav>
+      <button id="cloud-status" class="cloud-status" type="button"><span></span>Cloud locked</button>
+      <button id="theme-toggle" class="icon-button" type="button" aria-label="Switch color theme">☾</button>
+    </header>
     <aside id="music-bar" class="music-bar" aria-label="Music player"><div><span>Now playing</span><strong id="now-playing">Nothing selected</strong></div><audio id="audio-player" preload="metadata"></audio><button id="previous-track" type="button" aria-label="Previous track">‹</button><button id="toggle-track" class="play-button" type="button" aria-label="Play or pause">▶</button><button id="next-track" type="button" aria-label="Next track">›</button></aside>
-    <main id="main-content"><section class="section-shell content-section dentistry-section"><header class="section-heading"><h1>Dentistry</h1></header><form id="dentistry-form" class="entry-form"><label>Topic<input id="dentistry-topic" required placeholder="e.g. Restorative dentistry" /></label><label>Note<textarea id="dentistry-note" required placeholder="Add a learning note or milestone"></textarea></label><button class="button primary" type="submit">Save note</button></form><div id="dentistry-notes" class="card-grid"></div></section></main>
-    <footer><strong>Rauny Ramirez</strong><span>raunyramirez.com</span></footer><div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <main id="main-content">
+      <section class="section-shell content-section dentistry-study" aria-labelledby="dentistry-title">
+        <header class="dentistry-header">
+          <h1 id="dentistry-title">Dentistry</h1>
+          <button class="button ghost" type="button" data-open-dentistry-pdf="1">PDF</button>
+        </header>
+
+        <div class="dentistry-mode-bar" aria-label="Dentistry study modes">
+          <button type="button" data-dentistry-mode="study" aria-pressed="true">Study</button>
+          <button type="button" data-dentistry-test="10">Quiz 10</button>
+          <button type="button" data-dentistry-test="25">Test 25</button>
+        </div>
+
+        <div class="dentistry-stats" aria-label="Dentistry progress">
+          <span><small>Last</small><strong id="dentistry-last-score">—</strong></span>
+          <span><small>Attempts</small><strong id="dentistry-attempt-count">0</strong></span>
+          <span><small>Questions</small><strong id="dentistry-question-count">0</strong></span>
+        </div>
+
+        <section id="dentistry-study-panel" class="dentistry-panel" aria-label="Study cards">
+          <div class="dentistry-controls">
+            <select id="dentistry-topic-filter" aria-label="Filter by dentistry topic"><option value="all">All topics</option></select>
+            <input id="dentistry-study-search" type="search" placeholder="Search" aria-label="Search dentistry study cards" />
+          </div>
+          <div id="dentistry-study-cards" class="dentistry-study-grid"></div>
+        </section>
+
+        <section id="dentistry-test-panel" class="dentistry-panel" aria-label="Dentistry test" hidden>
+          <header class="dentistry-test-heading"><strong id="dentistry-test-title">Quiz</strong><span id="dentistry-test-progress"></span></header>
+          <form id="dentistry-test-form"><div id="dentistry-test-questions"></div><button id="dentistry-check-test" class="button primary" type="submit">Check answers</button></form>
+          <div id="dentistry-test-result" class="dentistry-result" role="status" aria-live="polite" hidden></div>
+        </section>
+
+        <section class="dentistry-history-section" aria-labelledby="dentistry-history-title">
+          <h2 id="dentistry-history-title">History</h2>
+          <div id="dentistry-history" class="dentistry-history"></div>
+        </section>
+
+        <details class="dentistry-notes-panel">
+          <summary>Notes</summary>
+          <form id="dentistry-form" class="entry-form">
+            <label>Topic<input id="dentistry-topic" required placeholder="Topic" /></label>
+            <label>Note<textarea id="dentistry-note" required placeholder="Add a note"></textarea></label>
+            <button class="button primary" type="submit">Save</button>
+          </form>
+          <div id="dentistry-notes" class="card-grid"></div>
+        </details>
+      </section>
+    </main>
+
+    <div id="dentistry-pdf-backdrop" class="dentistry-pdf-backdrop" hidden></div>
+    <aside id="dentistry-pdf-drawer" class="dentistry-pdf-drawer" aria-label="Dentistry PDF reference" aria-hidden="true" hidden>
+      <header><strong>Dentistry Reference</strong><button id="dentistry-pdf-close" type="button" aria-label="Close PDF">×</button></header>
+      <iframe id="dentistry-pdf-frame" title="Dentistry study reference PDF"></iframe>
+    </aside>
+
+    <footer><strong>Rauny Ramirez</strong><span>raunyramirez.com</span></footer>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
   </body>
 </html>

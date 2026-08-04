@@ -184,12 +184,13 @@ body > footer { display:flex; width:min(1180px,calc(100% - 40px)); justify-conte
   .drawing-actions { width:100%; margin-left:0; }
 }
 @media (max-width:600px) {
-  .go-back-button { left:max(6px,env(safe-area-inset-left)); width:62px; height:190px; font-size:.76rem; }
+  .go-back-button { display:none !important; }
   .site-header { padding-inline:14px; }
   .brand strong { display:none; }
   .cloud-status,.cloud-status.connected { width:38px; overflow:hidden; justify-content:center; gap:0; padding:0; color:transparent; font-size:0; }
   .cloud-status span { flex:0 0 auto; }
-  .music-bar { padding-inline:15px; }
+  .music-bar { grid-template-columns:minmax(0,1fr) repeat(4,auto); gap:5px; padding-inline:12px; }
+  .music-bar button { display:grid; place-items:center; }
   .section-shell { width:min(100% - 26px,1180px); }
   .hero { gap:48px; padding-block:55px; }
   h1 { font-size:clamp(3.5rem,18vw,5.3rem); }

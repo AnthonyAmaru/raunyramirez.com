@@ -2,6 +2,7 @@ const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const KEYS = { theme: "rauny_theme", dentistry: "rauny_dentistry_notes", dentistryAttempts: "rauny_dentistry_attempts", goals: "rauny_goal_board" };
 const CLOUD_ADMIN_EMAIL = "anthonyamaru93@gmail.com";
+const MUSIC_PLAYER_STATE_KEY = "rauny_music_player_state_v1";
 const CLOUD_CONTENT_KEYS = { [KEYS.dentistry]: "dentistry", [KEYS.goals]: "goals" };
 const PRIMARY_NAV_ITEMS = [
   ["resume.html", "Resume"],
@@ -25,6 +26,7 @@ const SHOPPING_CATEGORIES = [
 let toastTimer;
 let tracks = [];
 let currentTrackId = null;
+let playerStateRestored = false;
 const selectedTrackIds = new Set();
 let cloudAdminPassword = null;
 let artItems = [];
@@ -745,6 +747,35 @@ async function renderMusic() {
   if ($("#track-count")) $("#track-count").textContent = `${tracks.length} ${tracks.length === 1 ? "song" : "songs"}`;
   if ($("#track-list")) $("#track-list").innerHTML = errorMessage ? `<div class="empty-state">Cloud library unavailable: ${escapeHtml(errorMessage)}</div>` : tracks.length ? tracks.map((track) => `<article class="track-row"><input class="track-select" type="checkbox" data-select-track="${track.id}" aria-label="Select ${escapeHtml(track.title)}" ${selectedTrackIds.has(String(track.id)) ? "checked" : ""} /><button class="track-play" data-play-track="${track.id}" aria-label="Play ${escapeHtml(track.title)}">▶</button><div><strong>${escapeHtml(track.title)}</strong><small>${formatBytes(track.size_bytes)}</small></div><button class="delete-button" data-delete-track="${track.id}" aria-label="Delete ${escapeHtml(track.title)}">×</button></article>`).join("") : '<div class="empty-state">No music yet</div>';
   updateTrackSelectionControls();
+  restoreMusicPlayerState();
+}
+
+function readMusicPlayerState() {
+  try { return JSON.parse(sessionStorage.getItem(MUSIC_PLAYER_STATE_KEY)) || null; } catch { return null; }
+}
+
+function saveMusicPlayerState() {
+  const track = tracks.find((item) => String(item.id) === String(currentTrackId));
+  if (!track) return;
+  const player = $("#audio-player");
+  sessionStorage.setItem(MUSIC_PLAYER_STATE_KEY, JSON.stringify({ trackId: String(track.id), title: track.title, currentTime: Number(player.currentTime || 0), playing: !player.paused }));
+}
+
+function restoreMusicPlayerState() {
+  if (playerStateRestored) return;
+  playerStateRestored = true;
+  const saved = readMusicPlayerState();
+  const track = tracks.find((item) => String(item.id) === String(saved?.trackId));
+  if (!track) return;
+  currentTrackId = String(track.id);
+  const player = $("#audio-player");
+  player.src = track.url;
+  $("#now-playing").textContent = track.title;
+  if (Number(saved.currentTime) > 0) {
+    const seek = () => { player.currentTime = Math.min(Number(saved.currentTime), Number.isFinite(player.duration) ? player.duration : Number(saved.currentTime)); };
+    if (player.readyState >= 1) seek(); else player.addEventListener("loadedmetadata", seek, { once: true });
+  }
+  if (saved.playing) player.play().catch(() => {});
 }
 
 function updateTrackSelectionControls() {
@@ -769,6 +800,7 @@ async function deleteSelectedTracks() {
   if (selected.some((track) => String(track.id) === String(currentTrackId))) {
     $("#audio-player").pause();
     currentTrackId = null;
+    sessionStorage.removeItem(MUSIC_PLAYER_STATE_KEY);
     $("#now-playing").textContent = "Nothing selected";
   }
   selectedTrackIds.clear();
@@ -784,6 +816,7 @@ async function playTrack(id) {
   player.src = track.url;
   $("#now-playing").textContent = track.title;
   try { await player.play(); } catch { toast("Tap play to start this song."); }
+  saveMusicPlayerState();
 }
 
 async function ensureCloudAdmin() {
@@ -844,7 +877,7 @@ $("#track-list")?.addEventListener("click", async (event) => {
     try {
       await musicCloud.deleteTrack(track);
       selectedTrackIds.delete(String(track.id));
-      if (String(currentTrackId) === String(track.id)) { $("#audio-player").pause(); currentTrackId = null; $("#now-playing").textContent = "Nothing selected"; }
+      if (String(currentTrackId) === String(track.id)) { $("#audio-player").pause(); currentTrackId = null; sessionStorage.removeItem(MUSIC_PLAYER_STATE_KEY); $("#now-playing").textContent = "Nothing selected"; }
       renderMusic();
     } catch (error) { toast(error.message); }
   }
@@ -885,9 +918,10 @@ document.addEventListener("keydown", (event) => {
 $("#toggle-track").addEventListener("click", () => { const player = $("#audio-player"); if (!player.src && tracks.length) return playTrack(tracks[0].id); if (player.paused) player.play(); else player.pause(); });
 $("#previous-track").addEventListener("click", () => stepTrack(-1));
 $("#next-track").addEventListener("click", () => stepTrack(1));
-$("#audio-player").addEventListener("play", () => $("#toggle-track").textContent = "❚❚");
-$("#audio-player").addEventListener("pause", () => $("#toggle-track").textContent = "▶");
+$("#audio-player").addEventListener("play", () => { $("#toggle-track").textContent = "❚❚"; saveMusicPlayerState(); });
+$("#audio-player").addEventListener("pause", () => { $("#toggle-track").textContent = "▶"; saveMusicPlayerState(); });
 $("#audio-player").addEventListener("ended", () => stepTrack(1));
+window.addEventListener("pagehide", saveMusicPlayerState);
 
 bindDropZone("#art-drop-zone", "#art-file-input", "#choose-art", addArtFiles);
 bindDropZone("#music-drop-zone", "#music-file-input", "#choose-music", addMusicFiles);

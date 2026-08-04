@@ -8,7 +8,7 @@
     <title>Interests · Rauny Ramirez</title>
     <link rel="icon" href="favicon.ico" sizes="any" /><link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" /><link rel="icon" href="favicon-16.png" type="image/png" sizes="16x16" /><link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180" /><link rel="manifest" href="site.webmanifest" />
     <link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin /><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=20260804-mobileglobe1" /><script src="music-cloud.js?v=20260804-structure1" defer></script><script src="script.js?v=20260804-back1" defer></script>
+    <link rel="stylesheet" href="styles.css?v=20260804-parity1" /><script src="music-cloud.js?v=20260804-structure1" defer></script><script src="script.js?v=20260804-parity1" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to content</a>
@@ -22,15 +22,16 @@
     <main id="main-content">
       <section class="home-launch section-shell" aria-labelledby="interests-title">
         <header><div><h1 id="interests-title">Interests</h1></div></header>
-        <div class="launch-grid interest-launch" aria-label="Interest sections">
-          <a href="art.html"><span class="interest-emoji" aria-hidden="true">🎨</span><strong>Art</strong><b>→</b></a>
-          <a href="dentistry.html"><span class="interest-emoji" aria-hidden="true">🦷</span><strong>Dentistry</strong><b>→</b></a>
-          <a href="travel.html"><span class="interest-emoji" aria-hidden="true">✈️</span><strong>Travel</strong><b>→</b></a>
-          <a href="books.html"><span class="interest-emoji" aria-hidden="true">📚</span><strong>Books</strong><b>→</b></a>
-          <a href="shopping.html"><span class="interest-emoji" aria-hidden="true">🛍️</span><strong>Shopping</strong><b>→</b></a>
+        <div class="interest-grid" aria-label="Interest sections">
+          <a class="interest-card" href="art.html" data-interest-app><span class="interest-icon" aria-hidden="true">🎨</span><h2>Art</h2></a>
+          <a class="interest-card" href="dentistry.html" data-interest-app><span class="interest-icon" aria-hidden="true">🦷</span><h2>Dentistry</h2></a>
+          <a class="interest-card" href="travel.html" data-interest-app><span class="interest-icon" aria-hidden="true">✈️</span><h2>Travel</h2></a>
+          <a class="interest-card" href="books.html" data-interest-app><span class="interest-icon" aria-hidden="true">📚</span><h2>Books</h2></a>
+          <a class="interest-card" href="shopping.html" data-interest-app><span class="interest-icon" aria-hidden="true">🛍️</span><h2>Shopping</h2></a>
         </div>
       </section>
     </main>
+    <div id="app-modal" class="app-modal" hidden><iframe id="app-frame" title="Embedded interest page"></iframe></div>
     <footer><strong>Rauny Ramirez</strong><span>raunyramirez.com</span></footer><div id="toast" class="toast" role="status" aria-live="polite"></div>
   </body>
 </html>

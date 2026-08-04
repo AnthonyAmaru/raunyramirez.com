@@ -249,7 +249,8 @@ body > footer { display:flex; width:min(1180px,calc(100% - 40px)); justify-conte
 .music-drop { background:var(--surface); }
 
 /* Shared music-library structure */
-.music-workspace { display:grid; grid-template-columns:230px minmax(0,1fr); gap:12px; margin-top:22px; align-items:start; }
+.music-workspace { display:grid; min-width:0; grid-template-columns:230px minmax(0,1fr); gap:12px; margin-top:22px; align-items:start; }
+.music-workspace > * { min-width:0; }
 .playlist-panel,.music-workspace .music-library { margin:0; border:1px solid var(--line); border-radius:14px; background:var(--surface); box-shadow:none; }
 .playlist-panel { padding:15px; }
 .playlist-heading { display:flex; min-height:46px; align-items:center; justify-content:space-between; gap:8px; border-bottom:1px solid var(--line); margin-bottom:9px; padding:0 4px 10px; }
@@ -357,6 +358,35 @@ body > footer { display:flex; width:min(1180px,calc(100% - 40px)); justify-conte
 [data-theme="dark"] .leaflet-tile-pane { filter:brightness(.68) contrast(.9) saturate(.55); }
 .map-message { margin:0; padding:18px; color:var(--muted); font-size:.78rem; }
 
+/* Shared portal structure: match Anthony's interest cards and embedded detail shell. */
+.interest-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.interest-card { display:flex; min-height:280px; flex-direction:column; align-items:flex-start; border:1px solid var(--line); border-radius:14px; background:var(--surface); color:var(--ink); padding:24px; text-align:left; text-decoration:none; transition:border-color .18s,box-shadow .18s,transform .18s; }
+.interest-card:nth-child(5n+1) { background:color-mix(in srgb,var(--blue) 72%,var(--surface)); }
+.interest-card:nth-child(5n+2) { background:color-mix(in srgb,var(--rose) 72%,var(--surface)); }
+.interest-card:nth-child(5n+3) { background:color-mix(in srgb,var(--sage) 72%,var(--surface)); }
+.interest-card:nth-child(5n+4) { background:color-mix(in srgb,var(--sun) 72%,var(--surface)); }
+.interest-card:nth-child(5n+5) { background:color-mix(in srgb,var(--terracotta) 18%,var(--surface)); }
+.interest-card:hover,.interest-card:focus-visible { border-color:color-mix(in srgb,var(--ink) 28%,transparent); box-shadow:var(--shadow); outline:0; transform:translateY(-2px); }
+.interest-icon { font-size:1.7rem; line-height:1; }
+.interest-card h2 { margin:22px 0 0; font-size:clamp(1.4rem,2.4vw,2rem); letter-spacing:-.035em; }
+body.app-open { overflow:hidden; }
+.app-modal { position:fixed; z-index:48; inset:calc(var(--header) + 64px) 0 0 112px; display:grid; min-height:0; grid-template-rows:1fr; background:var(--canvas); }
+.app-modal iframe { width:100%; height:100%; border:0; background:var(--canvas); }
+[data-embedded="true"] .site-header,[data-embedded="true"] .music-bar,[data-embedded="true"] body > footer,[data-embedded="true"] .go-back-button,[data-embedded="true"] .skip-link { display:none !important; }
+[data-embedded="true"] .content-section { padding-top:42px; }
+
+/* Shared music filters: one column per field and multi-select artists. */
+.artist-filter { position:relative; min-width:0; }
+.artist-filter summary { display:flex; min-height:38px; align-items:center; justify-content:space-between; gap:8px; overflow:hidden; border:1px solid var(--line); border-radius:10px; background:var(--canvas); color:var(--ink); padding:0 10px; cursor:pointer; font-size:.72rem; list-style:none; }
+.artist-filter summary::-webkit-details-marker { display:none; }
+.artist-filter summary span:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.artist-filter[open] summary { border-color:color-mix(in srgb,var(--ink) 32%,var(--line)); }
+.artist-filter-options { position:absolute; z-index:35; top:calc(100% + 6px); left:0; display:grid; width:max(100%,220px); max-height:260px; overflow:auto; border:1px solid var(--line); border-radius:12px; background:var(--surface); box-shadow:var(--shadow); padding:6px; }
+.artist-filter-all,.artist-filter-option { display:flex; min-height:36px; align-items:center; gap:9px; border:0; border-radius:8px; background:transparent; color:var(--ink); padding:7px 9px; cursor:pointer; font:inherit; font-size:.72rem; text-align:left; }
+.artist-filter-all:hover,.artist-filter-all.active,.artist-filter-option:hover { background:var(--rose); }
+.track-column-filter .artist-filter-option input { width:16px; min-height:16px; margin:0; padding:0; accent-color:var(--ink); }
+.artist-filter-option span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
 @media (max-width:600px) {
   .home-launch { min-height:calc(100svh - 134px); padding-block:36px; }
   .launch-grid { grid-template-columns:1fr; }
@@ -380,6 +410,9 @@ body > footer { display:flex; width:min(1180px,calc(100% - 40px)); justify-conte
   .travel-destinations button:nth-child(2n) { border-right:0; }
   .travel-destinations button:last-child { grid-column:1/-1; border-bottom:0; }
   #travel-map { height:58vh; min-height:360px; }
+  .interest-grid { grid-template-columns:1fr; }
+  .interest-card { min-height:240px; }
+  .app-modal { left:0; }
 }
 
 /* Resume */

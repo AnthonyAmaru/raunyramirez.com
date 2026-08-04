@@ -10,6 +10,9 @@ const PRIMARY_NAV_ITEMS = [
   ["music.html", "Music"],
   ["goals.html", "Goals"],
 ];
+const INTEREST_DETAIL_PAGES = ["art.html", "dentistry.html", "travel.html", "books.html", "shopping.html"];
+const IS_EMBEDDED = window.self !== window.top || new URLSearchParams(location.search).get("embedded") === "1";
+document.documentElement.dataset.embedded = String(IS_EMBEDDED);
 const SHOPPING_STORES = [
   { slug: "prettylittlething", name: "PrettyLittleThing", mark: "PLT", url: "https://www.prettylittlething.us/" },
   { slug: "nasty-gal", name: "Nasty Gal", mark: "NASTY GAL", url: "https://www.nastygal.com/" },
@@ -28,7 +31,7 @@ let tracks = [];
 let playlists = [];
 let visibleTracks = [];
 let currentPlaylist = "all";
-let currentArtist = "all";
+const currentArtists = new Set();
 let currentSongQuery = "";
 let musicSortColumn = "song";
 let musicSortDirection = "asc";
@@ -94,26 +97,61 @@ function normalizePrimaryNavigation() {
   const nav = $("#primary-nav");
   if (!nav) return;
   let currentPage = location.pathname.split("/").pop() || "index.html";
-  if (["art.html", "dentistry.html", "travel.html", "books.html", "shopping.html"].includes(currentPage)) currentPage = "interests.html";
+  if (INTEREST_DETAIL_PAGES.includes(currentPage)) currentPage = "interests.html";
   nav.innerHTML = PRIMARY_NAV_ITEMS.map(([href, label]) => `<a href="${href}"${currentPage === href ? ' aria-current="page"' : ""}>${label}</a>`).join("");
 }
 
 function installGoBackButton() {
   const currentPage = location.pathname.split("/").pop() || "index.html";
-  if (currentPage === "index.html" || document.querySelector(".go-back-button")) return;
-  const interestPages = ["art.html", "dentistry.html", "travel.html", "books.html", "shopping.html"];
+  if (IS_EMBEDDED || currentPage === "index.html" || document.querySelector(".go-back-button")) return;
   const button = document.createElement("button");
   button.className = "go-back-button";
   button.type = "button";
   button.setAttribute("aria-label", "Go back to the previous page");
   button.textContent = "GO BACK";
   button.addEventListener("click", () => {
+    if (!$("#app-modal")?.hidden) return closeInterestApp();
     let sameSiteReferrer = false;
     try { sameSiteReferrer = new URL(document.referrer).origin === location.origin; } catch { /* Use the site fallback. */ }
     if (sameSiteReferrer && history.length > 1) return history.back();
-    location.href = interestPages.includes(currentPage) ? "interests.html" : "index.html";
+    location.href = INTEREST_DETAIL_PAGES.includes(currentPage) ? "interests.html" : "index.html";
   });
   document.body.append(button);
+}
+
+function installInterestApps() {
+  const modal = $("#app-modal");
+  const frame = $("#app-frame");
+  if (!modal || !frame) return;
+  frame.addEventListener("load", () => {
+    if (!frame.contentDocument || frame.src === "about:blank") return;
+    frame.contentDocument.documentElement.dataset.embedded = "true";
+    if (!frame.contentDocument.querySelector("#embedded-shell-style")) {
+      const style = frame.contentDocument.createElement("style");
+      style.id = "embedded-shell-style";
+      style.textContent = `.site-header,.music-bar,body>footer,.go-back-button,.skip-link{display:none!important}.content-section{padding-top:42px!important}`;
+      frame.contentDocument.head.append(style);
+    }
+  });
+  $$("[data-interest-app]").forEach((link) => link.addEventListener("click", (event) => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    const url = new URL(link.href, location.href);
+    url.searchParams.set("embedded", "1");
+    frame.src = url.href;
+    frame.title = `${link.textContent.trim()} · Rauny Ramirez`;
+    modal.hidden = false;
+    document.body.classList.add("app-open");
+  }));
+}
+
+function closeInterestApp() {
+  const modal = $("#app-modal");
+  const frame = $("#app-frame");
+  if (!modal || !frame) return;
+  frame.src = "about:blank";
+  modal.hidden = true;
+  document.body.classList.remove("app-open");
 }
 
 function updateCloudStatus() {
@@ -466,6 +504,22 @@ function installQuickAi() {
     </div>`);
 }
 
+function installMusicLayoutParity() {
+  const artistSelect = $("#artist-filter");
+  if (artistSelect?.tagName === "SELECT") {
+    artistSelect.outerHTML = `<details id="artist-filter" class="artist-filter"><summary><span id="artist-filter-label">All artists</span><span aria-hidden="true">⌄</span></summary><div id="artist-filter-options" class="artist-filter-options" role="group" aria-label="Filter by artists"></div></details>`;
+  }
+  const library = $(".music-workspace .music-library");
+  const heading = library?.querySelector(".library-title");
+  const fileInput = $("#music-file-input");
+  const dropZone = $("#music-drop-zone");
+  if (library && heading && fileInput && dropZone) {
+    heading.after(fileInput, dropZone);
+    const dropTitle = $("strong", dropZone);
+    if (dropTitle) dropTitle.textContent = "Drop files";
+  }
+}
+
 function toggleQuickAi(force) {
   const popover = $("#quick-ai-popover");
   const toggle = $("#quick-ai-toggle");
@@ -802,9 +856,10 @@ async function renderMusic() {
   }
   if (!$("#track-list")) return restoreMusicPlayerState();
   const artists = [...new Set(tracks.map(trackArtist))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
-  if (currentArtist !== "all" && !artists.includes(currentArtist)) currentArtist = "all";
+  [...currentArtists].forEach((artist) => { if (!artists.includes(artist)) currentArtists.delete(artist); });
   if (currentPlaylist !== "all" && currentPlaylist !== "none" && !playlists.some((playlist) => String(playlist.id) === currentPlaylist)) currentPlaylist = "all";
-  $("#artist-filter").innerHTML = `<option value="all">All artists</option>${artists.map((artist) => `<option value="${escapeHtml(artist)}">${escapeHtml(artist)}</option>`).join("")}`;
+  $("#artist-filter-options").innerHTML = `<button id="clear-artist-filter" class="artist-filter-all" type="button">All artists</button>${artists.map((artist) => `<label class="artist-filter-option"><input type="checkbox" data-artist-filter value="${escapeHtml(artist)}" ${currentArtists.has(artist) ? "checked" : ""} /><span>${escapeHtml(artist)}</span></label>`).join("")}`;
+  syncArtistFilterUi();
   const playlistOptions = playlists.map((playlist) => `<option value="${playlist.id}">${escapeHtml(playlist.name)}</option>`).join("");
   $("#playlist-filter").innerHTML = `<option value="all">All playlists</option><option value="none">No playlist</option>${playlistOptions}`;
   if ($("#all-track-count")) $("#all-track-count").textContent = tracks.length;
@@ -822,7 +877,7 @@ function renderMusicRows() {
   const normalizedQuery = currentSongQuery.trim().toLocaleLowerCase();
   visibleTracks = tracks.filter((track) => {
     const matchesSong = !normalizedQuery || String(track.title || "").toLocaleLowerCase().includes(normalizedQuery);
-    const matchesArtist = currentArtist === "all" || trackArtist(track) === currentArtist;
+    const matchesArtist = !currentArtists.size || currentArtists.has(trackArtist(track));
     const matchesPlaylist = currentPlaylist === "all" || (currentPlaylist === "none" ? !track.playlist_id : String(track.playlist_id) === currentPlaylist);
     return matchesSong && matchesArtist && matchesPlaylist;
   });
@@ -834,7 +889,7 @@ function renderMusicRows() {
   });
   const availableIds = new Set(tracks.map((track) => String(track.id)));
   [...selectedTrackIds].forEach((id) => { if (!availableIds.has(id)) selectedTrackIds.delete(id); });
-  $("#artist-filter").value = currentArtist;
+  syncArtistFilterUi();
   $("#playlist-filter").value = currentPlaylist;
   $("#track-count").textContent = `${visibleTracks.length} ${visibleTracks.length === 1 ? "song" : "songs"}`;
   $("#library-title").textContent = currentPlaylist === "all" ? "All music" : currentPlaylist === "none" ? "No playlist" : selectedPlaylist?.name || "Playlist";
@@ -850,6 +905,17 @@ function renderMusicRows() {
   $$('[data-assign-track]').forEach((select) => { const track = tracks.find((item) => String(item.id) === String(select.dataset.assignTrack)); select.value = track?.playlist_id || ""; });
   updateMusicSortControls();
   updateTrackSelectionControls();
+}
+
+function syncArtistFilterUi() {
+  const artists = [...currentArtists];
+  const label = $("#artist-filter-label");
+  if (label) {
+    label.textContent = artists.length === 0 ? "All artists" : artists.length === 1 ? artists[0] : `${artists.length} artists`;
+    label.closest("summary")?.setAttribute("title", artists.length ? artists.join(", ") : "All artists");
+  }
+  $$("[data-artist-filter]").forEach((checkbox) => { checkbox.checked = currentArtists.has(checkbox.value); });
+  $("#clear-artist-filter")?.classList.toggle("active", artists.length === 0);
 }
 
 function readMusicPlayerState() {
@@ -1029,8 +1095,10 @@ function bindDropZone(zoneSelector, inputSelector, chooseSelector, handler) {
 }
 
 installQuickAi();
+installMusicLayoutParity();
 normalizePrimaryNavigation();
 installGoBackButton();
+installInterestApps();
 $("#menu-toggle").addEventListener("click", () => { const nav = $("#primary-nav"); nav.classList.toggle("open"); $("#menu-toggle").setAttribute("aria-expanded", String(nav.classList.contains("open"))); });
 $$('#primary-nav a').forEach((link) => link.addEventListener("click", () => $("#primary-nav").classList.remove("open")));
 $("#theme-toggle").addEventListener("click", () => applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
@@ -1093,7 +1161,19 @@ $("#new-playlist")?.addEventListener("click", createPlaylist);
 $("#assign-selected-tracks")?.addEventListener("click", assignSelectedTracks);
 $("#bulk-playlist-select")?.addEventListener("change", updateTrackSelectionControls);
 $("#song-filter")?.addEventListener("input", (event) => { selectedTrackIds.clear(); currentSongQuery = event.target.value; renderMusicRows(); });
-$("#artist-filter")?.addEventListener("change", (event) => { selectedTrackIds.clear(); currentArtist = event.target.value; renderMusicRows(); });
+$("#artist-filter-options")?.addEventListener("change", (event) => {
+  const checkbox = event.target.closest("[data-artist-filter]");
+  if (!checkbox) return;
+  selectedTrackIds.clear();
+  if (checkbox.checked) currentArtists.add(checkbox.value); else currentArtists.delete(checkbox.value);
+  renderMusicRows();
+});
+$("#artist-filter-options")?.addEventListener("click", (event) => {
+  if (!event.target.closest("#clear-artist-filter")) return;
+  selectedTrackIds.clear();
+  currentArtists.clear();
+  renderMusicRows();
+});
 $("#playlist-filter")?.addEventListener("change", (event) => { selectedTrackIds.clear(); currentPlaylist = event.target.value; renderMusicRows(); });
 $$('[data-sort-column]').forEach((button) => button.addEventListener("click", () => setMusicSort(button.dataset.sortColumn)));
 $(".music-workspace")?.addEventListener("click", (event) => {
@@ -1101,7 +1181,7 @@ $(".music-workspace")?.addEventListener("click", (event) => {
   if (!playlist) return;
   selectedTrackIds.clear();
   currentPlaylist = playlist.dataset.playlist;
-  currentArtist = "all";
+  currentArtists.clear();
   renderMusic();
 });
 $("#delete-selected-tracks")?.addEventListener("click", deleteSelectedTracks);
@@ -1123,6 +1203,7 @@ document.addEventListener("click", (event) => {
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   if (!$("#quick-ai-popover").hidden) toggleQuickAi(false);
+  if (!$("#app-modal")?.hidden) closeInterestApp();
   if ($("#dentistry-pdf-drawer") && !$("#dentistry-pdf-drawer").hidden) closeDentistryPdf();
 });
 $("#toggle-track").addEventListener("click", () => { const player = $("#audio-player"); if (!player.src && tracks.length) return playTrack(tracks[0].id); if (player.paused) player.play(); else player.pause(); });

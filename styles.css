@@ -203,6 +203,7 @@ body > footer { display:flex; width:min(1180px,calc(100% - 40px)); justify-conte
 .launch-grid a { display:grid; grid-template-columns:auto 1fr auto; min-height:112px; align-items:center; gap:18px; border:1px solid var(--line); border-radius:14px; background:var(--surface); padding:24px; text-decoration:none; transition:border-color .18s,transform .18s,box-shadow .18s; }
 .launch-grid a:hover { border-color:color-mix(in srgb,var(--ink) 28%,transparent); box-shadow:var(--shadow); transform:translateY(-2px); }
 .launch-grid span { color:var(--muted); font-size:.68rem; font-weight:800; }
+.interest-launch .interest-emoji { color:inherit; font-size:1.45rem; font-weight:400; line-height:1; }
 .launch-grid strong { font-size:clamp(1rem,2vw,1.25rem); }
 .launch-grid b { font-size:1.3rem; }
 .content-section { padding-block:90px 24px; }
@@ -236,8 +237,10 @@ body > footer { display:flex; width:min(1180px,calc(100% - 40px)); justify-conte
 .resume-block > h2 { margin:0 0 18px; color:var(--muted); font-size:.72rem; letter-spacing:.14em; text-transform:uppercase; }
 .education-list { display:grid; gap:10px; }
 .education-card { display:grid; grid-template-columns:auto 1fr auto; min-height:112px; align-items:center; gap:18px; border:1px solid var(--line); border-radius:14px; background:var(--surface); padding:18px 22px; }
-.school-mark { display:grid; width:58px; height:58px; place-items:center; border-radius:12px; background:#5b2c83; color:#fff; font-size:.8rem; font-weight:800; letter-spacing:.04em; }
-.school-mark.mdc-mark { background:#1769aa; }
+.school-mark { display:grid; width:84px; height:64px; place-items:center; overflow:hidden; border:1px solid var(--line); border-radius:12px; background:#fff; padding:6px 8px; }
+.school-mark img { display:block; width:100%; height:100%; object-fit:contain; }
+.school-mark.nyu-mark img { width:36px; }
+.school-mark.mdc-mark { background:#fff; }
 .education-card h3 { margin:0 0 5px; font-size:1.15rem; }
 .education-card p,.education-card time { margin:0; color:var(--muted); font-size:.78rem; }
 .education-card time { font-weight:700; white-space:nowrap; }

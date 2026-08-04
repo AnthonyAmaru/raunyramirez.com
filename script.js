@@ -70,6 +70,24 @@ function normalizePrimaryNavigation() {
   nav.innerHTML = PRIMARY_NAV_ITEMS.map(([href, label]) => `<a href="${href}"${currentPage === href ? ' aria-current="page"' : ""}>${label}</a>`).join("");
 }
 
+function installGoBackButton() {
+  const currentPage = location.pathname.split("/").pop() || "index.html";
+  if (currentPage === "index.html" || document.querySelector(".go-back-button")) return;
+  const interestPages = ["art.html", "dentistry.html", "travel.html", "books.html", "shopping.html"];
+  const button = document.createElement("button");
+  button.className = "go-back-button";
+  button.type = "button";
+  button.setAttribute("aria-label", "Go back to the previous page");
+  button.textContent = "GO BACK";
+  button.addEventListener("click", () => {
+    let sameSiteReferrer = false;
+    try { sameSiteReferrer = new URL(document.referrer).origin === location.origin; } catch { /* Use the site fallback. */ }
+    if (sameSiteReferrer && history.length > 1) return history.back();
+    location.href = interestPages.includes(currentPage) ? "interests.html" : "index.html";
+  });
+  document.body.append(button);
+}
+
 function updateCloudStatus() {
   const status = $("#cloud-status");
   if (!status) return;
@@ -931,6 +949,7 @@ function bindDropZone(zoneSelector, inputSelector, chooseSelector, handler) {
 
 installQuickAi();
 normalizePrimaryNavigation();
+installGoBackButton();
 $("#menu-toggle").addEventListener("click", () => { const nav = $("#primary-nav"); nav.classList.toggle("open"); $("#menu-toggle").setAttribute("aria-expanded", String(nav.classList.contains("open"))); });
 $$('#primary-nav a').forEach((link) => link.addEventListener("click", () => $("#primary-nav").classList.remove("open")));
 $("#theme-toggle").addEventListener("click", () => applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));

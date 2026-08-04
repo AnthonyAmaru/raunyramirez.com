@@ -13,10 +13,52 @@
     const digest = await crypto.subtle.digest("SHA-256", bytes);
     return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
   }
+  function readSynchsafeInteger(bytes, offset) { return ((bytes[offset] & 0x7f) << 21) | ((bytes[offset + 1] & 0x7f) << 14) | ((bytes[offset + 2] & 0x7f) << 7) | (bytes[offset + 3] & 0x7f); }
+  function decodeId3Text(bytes) {
+    if (!bytes.length) return "";
+    const encoding = bytes[0];
+    let value = "";
+    try {
+      if (encoding === 0) value = new TextDecoder("windows-1252").decode(bytes.subarray(1));
+      else if (encoding === 3) value = new TextDecoder("utf-8").decode(bytes.subarray(1));
+      else if (encoding === 2) value = new TextDecoder("utf-16be").decode(bytes.subarray(1));
+      else {
+        const data = bytes.subarray(1);
+        const bigEndian = data[0] === 0xfe && data[1] === 0xff;
+        value = new TextDecoder(bigEndian ? "utf-16be" : "utf-16le").decode(data.subarray(data[0] === 0xff || data[0] === 0xfe ? 2 : 0));
+      }
+    } catch { value = new TextDecoder().decode(bytes.subarray(1)); }
+    return value.replace(/^\ufeff/, "").split(/\0+/).map((part) => part.trim()).filter(Boolean).join(" / ");
+  }
+  function extractId3Metadata(buffer) {
+    const bytes = new Uint8Array(buffer);
+    if (bytes.length < 10 || String.fromCharCode(...bytes.subarray(0, 3)) !== "ID3") return {};
+    const version = bytes[3];
+    const end = Math.min(bytes.length, 10 + readSynchsafeInteger(bytes, 6));
+    const metadata = {};
+    let offset = 10;
+    while (offset + (version === 2 ? 6 : 10) <= end) {
+      const idLength = version === 2 ? 3 : 4;
+      const frameId = String.fromCharCode(...bytes.subarray(offset, offset + idLength));
+      if (!frameId.trim() || /\0/.test(frameId)) break;
+      const sizeOffset = offset + idLength;
+      const frameSize = version === 2 ? (bytes[sizeOffset] << 16) | (bytes[sizeOffset + 1] << 8) | bytes[sizeOffset + 2] : version === 4 ? readSynchsafeInteger(bytes, sizeOffset) : new DataView(buffer, sizeOffset, 4).getUint32(0);
+      const headerSize = version === 2 ? 6 : 10;
+      const dataStart = offset + headerSize;
+      const dataEnd = Math.min(dataStart + frameSize, end);
+      if (frameSize <= 0 || dataEnd <= dataStart) break;
+      if (["TPE1", "TPE2", "TP1", "TP2"].includes(frameId) && !metadata.artist) metadata.artist = decodeId3Text(bytes.subarray(dataStart, dataEnd));
+      if (["TIT2", "TT2"].includes(frameId) && !metadata.title) metadata.title = decodeId3Text(bytes.subarray(dataStart, dataEnd));
+      offset = dataStart + frameSize;
+    }
+    return metadata;
+  }
   async function identifyFile(file) {
     const relativePath = file.webkitRelativePath || "";
     const folder = relativePath.includes("/") ? relativePath.slice(0, relativePath.lastIndexOf("/")) : "";
-    const contentHash = await sha256Hex(await file.arrayBuffer());
+    const fileBuffer = await file.arrayBuffer();
+    const contentHash = await sha256Hex(fileBuffer);
+    const embedded = extractId3Metadata(fileBuffer);
     const folderFingerprint = folder ? await sha256Hex(folder.toLocaleLowerCase()) : null;
     const fileFingerprint = await sha256Hex(JSON.stringify({ name: file.name.toLocaleLowerCase(), size: file.size, lastModified: Number(file.lastModified || 0), folder }));
     return {
@@ -30,7 +72,10 @@
         size_bytes: file.size,
         mime_type: file.type || null,
         folder_fingerprint: folderFingerprint,
+        ...(embedded.artist ? { artist: embedded.artist } : {}),
+        ...(embedded.title ? { embedded_title: embedded.title } : {}),
       },
+      title: embedded.title || file.name.replace(/\.[^.]+$/, ""),
     };
   }
   async function readResponse(response) {
@@ -96,7 +141,7 @@
       const storagePath = `${site}/${this.user.id}/${crypto.randomUUID()}.${extension}`;
       await readResponse(await fetch(`${PROJECT_URL}/storage/v1/object/${BUCKET}/${encodeStoragePath(storagePath)}`, { method: "POST", headers: this.headers({ "Content-Type": file.type || "application/octet-stream", "x-upsert": "false" }, true), body: file }));
       try {
-        const rows = await readResponse(await fetch(`${PROJECT_URL}/rest/v1/music_tracks`, { method: "POST", headers: this.headers({ "Content-Type": "application/json", Prefer: "return=representation" }, true), body: JSON.stringify({ site, playlist_id: playlistId || null, title: file.name.replace(/\.[^.]+$/, ""), file_name: file.name, storage_path: storagePath, mime_type: file.type || null, size_bytes: file.size, content_hash: identity.contentHash, file_fingerprint: identity.fileFingerprint, source_metadata: identity.sourceMetadata }) }));
+        const rows = await readResponse(await fetch(`${PROJECT_URL}/rest/v1/music_tracks`, { method: "POST", headers: this.headers({ "Content-Type": "application/json", Prefer: "return=representation" }, true), body: JSON.stringify({ site, playlist_id: playlistId || null, title: identity.title, file_name: file.name, storage_path: storagePath, mime_type: file.type || null, size_bytes: file.size, content_hash: identity.contentHash, file_fingerprint: identity.fileFingerprint, source_metadata: identity.sourceMetadata }) }));
         return rows?.[0];
       } catch (error) {
         await fetch(`${PROJECT_URL}/storage/v1/object/${BUCKET}`, { method: "DELETE", headers: this.headers({ "Content-Type": "application/json" }, true), body: JSON.stringify({ prefixes: [storagePath] }) }).catch(() => {});

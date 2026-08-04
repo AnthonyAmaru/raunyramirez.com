@@ -28,6 +28,7 @@ let tracks = [];
 let playlists = [];
 let visibleTracks = [];
 let currentPlaylist = "all";
+let currentArtist = "all";
 let currentTrackId = null;
 let playerStateRestored = false;
 const selectedTrackIds = new Set();
@@ -52,6 +53,12 @@ function read(key) {
 function write(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
 function escapeHtml(value) { return String(value ?? "").replace(/[&<>\"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[character]); }
 function formatBytes(bytes) { return bytes < 1e6 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1e6).toFixed(1)} MB`; }
+function trackArtist(track) {
+  const stored = String(track?.source_metadata?.artist || "").trim();
+  if (stored) return stored;
+  const base = String(track?.file_name || track?.title || "").replace(/\.[^.]+$/, "").replace(/\s*\[[\w-]{6,}\]\s*$/, "").trim();
+  return base.match(/^(.+?)\s[-–—]\s.+$/)?.[1]?.trim() || "Unknown artist";
+}
 function toast(message) { const node = $("#toast"); node.textContent = message; node.classList.add("visible"); clearTimeout(toastTimer); toastTimer = setTimeout(() => node.classList.remove("visible"), 2600); }
 function safeExternalUrl(value) { try { const url = new URL(value); return ["http:", "https:"].includes(url.protocol) ? url.href : ""; } catch { return ""; } }
 
@@ -773,10 +780,17 @@ async function renderMusic() {
     errorMessage = error.message;
   }
   const selectedPlaylist = playlists.find((playlist) => String(playlist.id) === currentPlaylist);
-  visibleTracks = currentPlaylist === "all" ? tracks : tracks.filter((track) => track.playlist_id === selectedPlaylist?.id);
+  const playlistTracks = currentPlaylist === "all" ? tracks : tracks.filter((track) => track.playlist_id === selectedPlaylist?.id);
+  const artists = [...new Set(playlistTracks.map(trackArtist))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+  if (currentArtist !== "all" && !artists.includes(currentArtist)) currentArtist = "all";
+  if ($("#artist-filter")) {
+    $("#artist-filter").innerHTML = `<option value="all">All artists</option>${artists.map((artist) => `<option value="${escapeHtml(artist)}">${escapeHtml(artist)}</option>`).join("")}`;
+    $("#artist-filter").value = currentArtist;
+  }
+  visibleTracks = currentArtist === "all" ? playlistTracks : playlistTracks.filter((track) => trackArtist(track) === currentArtist);
   const availableIds = new Set(tracks.map((track) => String(track.id)));
   [...selectedTrackIds].forEach((id) => { if (!availableIds.has(id)) selectedTrackIds.delete(id); });
-  if ($("#track-count")) $("#track-count").textContent = `${tracks.length} ${tracks.length === 1 ? "song" : "songs"}`;
+  if ($("#track-count")) $("#track-count").textContent = `${visibleTracks.length} ${visibleTracks.length === 1 ? "song" : "songs"}`;
   if ($("#all-track-count")) $("#all-track-count").textContent = tracks.length;
   if ($("#library-title")) $("#library-title").textContent = currentPlaylist === "all" ? "All music" : selectedPlaylist?.name || "Playlist";
   if ($("#playlist-list")) $("#playlist-list").innerHTML = playlists.map((playlist) => `<button class="playlist-row ${currentPlaylist === String(playlist.id) ? "active" : ""}" type="button" data-playlist="${playlist.id}"><span>♬</span><strong>${escapeHtml(playlist.name)}</strong><small>${tracks.filter((track) => track.playlist_id === playlist.id).length}</small></button>`).join("");
@@ -787,7 +801,7 @@ async function renderMusic() {
     if (playlists.some((playlist) => String(playlist.id) === previousBulkPlaylist)) $("#bulk-playlist-select").value = previousBulkPlaylist;
   }
   if ($("#track-list")) {
-    $("#track-list").innerHTML = errorMessage ? `<div class="empty-state">Cloud library unavailable: ${escapeHtml(errorMessage)}</div>` : visibleTracks.length ? visibleTracks.map((track) => `<article class="track-row"><input class="track-select" type="checkbox" data-select-track="${track.id}" aria-label="Select ${escapeHtml(track.title)}" ${selectedTrackIds.has(String(track.id)) ? "checked" : ""} /><button class="track-play" data-play-track="${track.id}" aria-label="Play ${escapeHtml(track.title)}">▶</button><div><strong>${escapeHtml(track.title)}</strong><small>${formatBytes(track.size_bytes)}</small></div><select data-assign-track="${track.id}" aria-label="Move ${escapeHtml(track.title)} to playlist"><option value="">No playlist</option>${playlistOptions}</select><button class="delete-button" data-delete-track="${track.id}" aria-label="Delete ${escapeHtml(track.title)}">×</button></article>`).join("") : '<div class="empty-state">No music here yet</div>';
+    $("#track-list").innerHTML = errorMessage ? `<div class="empty-state">Cloud library unavailable: ${escapeHtml(errorMessage)}</div>` : visibleTracks.length ? visibleTracks.map((track) => `<article class="track-row"><input class="track-select" type="checkbox" data-select-track="${track.id}" aria-label="Select ${escapeHtml(track.title)}" ${selectedTrackIds.has(String(track.id)) ? "checked" : ""} /><button class="track-play" data-play-track="${track.id}" aria-label="Play ${escapeHtml(track.title)}">▶</button><div><strong>${escapeHtml(track.title)}</strong><small>${escapeHtml(trackArtist(track))} · ${formatBytes(track.size_bytes)}</small></div><select data-assign-track="${track.id}" aria-label="Move ${escapeHtml(track.title)} to playlist"><option value="">No playlist</option>${playlistOptions}</select><button class="delete-button" data-delete-track="${track.id}" aria-label="Delete ${escapeHtml(track.title)}">×</button></article>`).join("") : `<div class="empty-state">${playlistTracks.length ? "No songs match this artist" : "No music here yet"}</div>`;
     $$('[data-assign-track]').forEach((select) => { const track = tracks.find((item) => String(item.id) === String(select.dataset.assignTrack)); select.value = track?.playlist_id || ""; });
   }
   updateTrackSelectionControls();
@@ -995,11 +1009,13 @@ $("#select-all-tracks")?.addEventListener("change", (event) => {
 $("#new-playlist")?.addEventListener("click", createPlaylist);
 $("#assign-selected-tracks")?.addEventListener("click", assignSelectedTracks);
 $("#bulk-playlist-select")?.addEventListener("change", updateTrackSelectionControls);
+$("#artist-filter")?.addEventListener("change", (event) => { selectedTrackIds.clear(); currentArtist = event.target.value; renderMusic(); });
 $(".music-workspace")?.addEventListener("click", (event) => {
   const playlist = event.target.closest("[data-playlist]");
   if (!playlist) return;
   selectedTrackIds.clear();
   currentPlaylist = playlist.dataset.playlist;
+  currentArtist = "all";
   renderMusic();
 });
 $("#delete-selected-tracks")?.addEventListener("click", deleteSelectedTracks);

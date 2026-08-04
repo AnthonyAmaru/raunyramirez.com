@@ -121,6 +121,12 @@
       }
     }
 
+    async listShoppingProducts() {
+      const fields = "id,store_slug,external_id,title,description,category,brand,image_url,product_url,affiliate_url,price,compare_at_price,currency,availability,source_updated_at,updated_at";
+      const url = `${PROJECT_URL}/rest/v1/shopping_products?select=${fields}&active=eq.true&order=source_updated_at.desc.nullslast,title.asc`;
+      return (await readResponse(await fetch(url, { headers: this.headers() }))) || [];
+    }
+
     async getContent(site, contentKey) {
       this.requireAdmin();
       const url = `${PROJECT_URL}/rest/v1/site_content?select=value,updated_at&site=eq.${encodeURIComponent(site)}&content_key=eq.${encodeURIComponent(contentKey)}&limit=1`;

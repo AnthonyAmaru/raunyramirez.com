@@ -9,6 +9,19 @@ const PRIMARY_NAV_ITEMS = [
   ["music.html", "Music"],
   ["goals.html", "Goals"],
 ];
+const SHOPPING_STORES = [
+  { slug: "prettylittlething", name: "PrettyLittleThing", mark: "PLT", url: "https://www.prettylittlething.us/" },
+  { slug: "nasty-gal", name: "Nasty Gal", mark: "NASTY GAL", url: "https://www.nastygal.com/" },
+  { slug: "princess-polly", name: "Princess Polly", mark: "Princess Polly", url: "https://us.princesspolly.com/" },
+  { slug: "revolve", name: "REVOLVE", mark: "REVOLVE", url: "https://www.revolve.com/" },
+  { slug: "hot-topic", name: "Hot Topic", mark: "HOT TOPIC", url: "https://www.hottopic.com/" },
+  { slug: "jane", name: "Jane", mark: "jane", url: "https://jane.com/" },
+  { slug: "yoox", name: "YOOX", mark: "YOOX", url: "https://www.yoox.com/us/women" },
+];
+const SHOPPING_CATEGORIES = [
+  ["all", "All"], ["tops", "Shirts & tops"], ["bottoms", "Bottoms"], ["dresses", "Dresses"],
+  ["shoes", "Shoes"], ["bags", "Bags"], ["accessories", "Accessories"], ["outerwear", "Outerwear"], ["beauty", "Beauty"],
+];
 let toastTimer;
 let tracks = [];
 let currentTrackId = null;
@@ -21,6 +34,9 @@ let drawingRedoStack = [];
 let activeDrawingStroke = null;
 let activeDrawingPointer = null;
 let lastPencilTap = null;
+let shoppingProducts = [];
+let shoppingStore = "all";
+let shoppingCategory = "all";
 
 function read(key) {
   try { return JSON.parse(localStorage.getItem(key)) || []; } catch { return []; }
@@ -30,6 +46,7 @@ function write(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
 function escapeHtml(value) { return String(value ?? "").replace(/[&<>\"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[character]); }
 function formatBytes(bytes) { return bytes < 1e6 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1e6).toFixed(1)} MB`; }
 function toast(message) { const node = $("#toast"); node.textContent = message; node.classList.add("visible"); clearTimeout(toastTimer); toastTimer = setTimeout(() => node.classList.remove("visible"), 2600); }
+function safeExternalUrl(value) { try { const url = new URL(value); return ["http:", "https:"].includes(url.protocol) ? url.href : ""; } catch { return ""; } }
 
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme === "dark" ? "dark" : "light";
@@ -127,6 +144,98 @@ function renderGoals() {
   if (!$("#goal-board")) return;
   const goals = read(KEYS.goals);
   $("#goal-board").innerHTML = goals.length ? goals.map((goal) => `<article class="goal-card ${goal.done ? "done" : ""}"><span>${escapeHtml(goal.area)}</span><button class="delete-button" data-delete-goal="${goal.id}" aria-label="Delete ${escapeHtml(goal.title)}">×</button><h3>${escapeHtml(goal.title)}</h3><footer><small>${goal.done ? "Completed" : "In progress"}</small><button class="button ghost" type="button" data-toggle-goal="${goal.id}">${goal.done ? "Reopen" : "Done"}</button></footer></article>`).join("") : '<div class="empty-state">No goals yet</div>';
+}
+
+function shoppingStoreBySlug(slug) {
+  return SHOPPING_STORES.find((store) => store.slug === slug);
+}
+
+function shoppingFilteredProducts() {
+  const query = $("#shopping-search")?.value.trim().toLocaleLowerCase() || "";
+  const sort = $("#shopping-sort")?.value || "featured";
+  const filtered = shoppingProducts.filter((product) => {
+    const matchesStore = shoppingStore === "all" || product.store_slug === shoppingStore;
+    const matchesCategory = shoppingCategory === "all" || product.category === shoppingCategory;
+    const haystack = `${product.title || ""} ${product.brand || ""} ${product.description || ""}`.toLocaleLowerCase();
+    return matchesStore && matchesCategory && (!query || haystack.includes(query));
+  });
+  return filtered.sort((a, b) => {
+    if (sort === "price-low") return Number(a.price ?? Number.MAX_SAFE_INTEGER) - Number(b.price ?? Number.MAX_SAFE_INTEGER);
+    if (sort === "price-high") return Number(b.price ?? -1) - Number(a.price ?? -1);
+    if (sort === "newest") return new Date(b.source_updated_at || b.updated_at || 0) - new Date(a.source_updated_at || a.updated_at || 0);
+    return SHOPPING_STORES.findIndex((store) => store.slug === a.store_slug) - SHOPPING_STORES.findIndex((store) => store.slug === b.store_slug);
+  });
+}
+
+function formatProductPrice(product) {
+  if (product.price === null || product.price === undefined || product.price === "") return "";
+  try { return new Intl.NumberFormat("en-US", { style: "currency", currency: product.currency || "USD" }).format(Number(product.price)); }
+  catch { return `$${Number(product.price).toFixed(2)}`; }
+}
+
+function renderShoppingStoreFilters() {
+  const filters = $("#shopping-store-filters");
+  if (!filters) return;
+  const storeButtons = [{ slug: "all", name: "All stores", mark: "ALL" }, ...SHOPPING_STORES];
+  filters.innerHTML = storeButtons.map((store) => {
+    const count = store.slug === "all" ? shoppingProducts.length : shoppingProducts.filter((product) => product.store_slug === store.slug).length;
+    return `<button type="button" data-shopping-store="${store.slug}" aria-pressed="${shoppingStore === store.slug}"><span class="store-wordmark wordmark-${store.slug}">${escapeHtml(store.mark)}</span><small>${count || "Pending"}</small></button>`;
+  }).join("");
+}
+
+function renderShoppingCategoryFilters() {
+  const filters = $("#shopping-category-filters");
+  if (!filters) return;
+  filters.innerHTML = SHOPPING_CATEGORIES.map(([slug, label]) => {
+    const count = slug === "all" ? shoppingProducts.length : shoppingProducts.filter((product) => product.category === slug).length;
+    return `<button type="button" data-shopping-category="${slug}" aria-pressed="${shoppingCategory === slug}"><span>${escapeHtml(label)}</span><small>${count}</small></button>`;
+  }).join("");
+}
+
+function renderShoppingStoreStrip() {
+  const strip = $("#shopping-store-strip");
+  if (!strip) return;
+  strip.innerHTML = SHOPPING_STORES.map((store) => `<article class="shopping-store-card ${shoppingStore === store.slug ? "selected" : ""}"><button type="button" data-shopping-store="${store.slug}" aria-label="Show ${escapeHtml(store.name)} products"><span class="store-wordmark wordmark-${store.slug}">${escapeHtml(store.mark)}</span></button><a href="${store.url}" target="_blank" rel="noopener noreferrer" aria-label="Visit ${escapeHtml(store.name)}">Visit ↗</a></article>`).join("");
+}
+
+function renderShoppingProducts(errorMessage = "") {
+  const grid = $("#shopping-product-grid");
+  if (!grid) return;
+  const products = shoppingFilteredProducts();
+  $("#shopping-count").textContent = `${products.length} ${products.length === 1 ? "product" : "products"}`;
+  renderShoppingStoreFilters();
+  renderShoppingCategoryFilters();
+  renderShoppingStoreStrip();
+  if (errorMessage) {
+    grid.innerHTML = `<div class="empty-state shopping-empty"><strong>Catalog unavailable</strong><span>${escapeHtml(errorMessage)}</span></div>`;
+    return;
+  }
+  if (!products.length) {
+    const hasFeeds = shoppingProducts.length > 0;
+    grid.innerHTML = `<div class="empty-state shopping-empty"><strong>${hasFeeds ? "No matches" : "Product feeds pending"}</strong><span>${hasFeeds ? "Try another filter." : "Browse the stores above."}</span></div>`;
+    return;
+  }
+  grid.innerHTML = products.map((product) => {
+    const store = shoppingStoreBySlug(product.store_slug);
+    const destination = safeExternalUrl(product.affiliate_url || product.product_url);
+    const image = safeExternalUrl(product.image_url);
+    const currentPrice = formatProductPrice(product);
+    const comparePrice = product.compare_at_price && Number(product.compare_at_price) > Number(product.price) ? formatProductPrice({ ...product, price: product.compare_at_price }) : "";
+    return `<article class="shopping-product-card"><a class="product-image" href="${destination || store?.url || "#"}" target="_blank" rel="noopener noreferrer">${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(product.title)}" loading="lazy" />` : '<span aria-hidden="true">Image pending</span>'}</a><div class="product-card-body"><span class="product-store">${escapeHtml(store?.name || product.brand || product.store_slug)}</span><h2>${escapeHtml(product.title)}</h2><p class="product-price"><strong>${escapeHtml(currentPrice)}</strong>${comparePrice ? `<del>${escapeHtml(comparePrice)}</del>` : ""}</p><a class="button ghost" href="${destination || store?.url || "#"}" target="_blank" rel="noopener noreferrer">View</a></div></article>`;
+  }).join("");
+}
+
+async function initializeShopping() {
+  if (!$("#shopping-product-grid")) return;
+  let errorMessage = "";
+  try { shoppingProducts = await musicCloud.listShoppingProducts(); }
+  catch (error) { shoppingProducts = []; errorMessage = error.message; }
+  renderShoppingProducts(errorMessage);
+  $("#shopping-store-filters").addEventListener("click", (event) => { const button = event.target.closest("[data-shopping-store]"); if (!button) return; shoppingStore = button.dataset.shoppingStore; renderShoppingProducts(); });
+  $("#shopping-store-strip").addEventListener("click", (event) => { const button = event.target.closest("[data-shopping-store]"); if (!button) return; shoppingStore = button.dataset.shoppingStore; renderShoppingProducts(); });
+  $("#shopping-category-filters").addEventListener("click", (event) => { const button = event.target.closest("[data-shopping-category]"); if (!button) return; shoppingCategory = button.dataset.shoppingCategory; renderShoppingProducts(); });
+  $("#shopping-search").addEventListener("input", () => renderShoppingProducts());
+  $("#shopping-sort").addEventListener("change", () => renderShoppingProducts());
 }
 
 async function addArtFiles(files) {
@@ -540,5 +649,5 @@ $("#audio-player").addEventListener("ended", () => stepTrack(1));
 bindDropZone("#art-drop-zone", "#art-file-input", "#choose-art", addArtFiles);
 bindDropZone("#music-drop-zone", "#music-file-input", "#choose-music", addMusicFiles);
 applyTheme(localStorage.getItem(KEYS.theme) || "light");
-initializeDrawingStudio(); renderDentistry(); renderGoals(); renderArt(); renderMusic(); updateCloudStatus();
+initializeDrawingStudio(); renderDentistry(); renderGoals(); renderArt(); renderMusic(); initializeShopping(); updateCloudStatus();
 if (musicCloud.isSignedIn()) syncRaunyWorkspace();

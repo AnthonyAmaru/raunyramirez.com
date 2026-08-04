@@ -95,9 +95,9 @@ h1 em { color:var(--terracotta); font-weight:400; }
 .pencil-note { border-top:1px solid var(--line); color:var(--muted); padding:13px 20px; font-size:.72rem; }
 .gallery-heading { margin:42px 0 14px; font-size:2rem; }
 .empty-state { grid-column:1/-1; padding:55px 20px; color:var(--muted); text-align:center; }
-.entry-form,.diet-form,.goal-form { display:grid; gap:14px; border:1px solid var(--line); border-radius:var(--radius); background:var(--surface); padding:25px; box-shadow:var(--shadow); }
+.entry-form,.goal-form { display:grid; gap:14px; border:1px solid var(--line); border-radius:var(--radius); background:var(--surface); padding:25px; box-shadow:var(--shadow); }
 .entry-form { grid-template-columns:1fr 2fr auto; align-items:end; }
-.entry-form label,.diet-form label { display:grid; gap:7px; color:var(--muted); font-size:.7rem; font-weight:700; }
+.entry-form label { display:grid; gap:7px; color:var(--muted); font-size:.7rem; font-weight:700; }
 input,textarea,select { width:100%; border:1px solid var(--line); border-radius:14px; background:var(--canvas); color:var(--ink); padding:12px 14px; outline:none; }
 textarea { min-height:92px; resize:vertical; }
 input:focus,textarea:focus,select:focus { border-color:var(--terracotta); box-shadow:0 0 0 3px color-mix(in srgb,var(--terracotta) 18%,transparent); }
@@ -108,12 +108,6 @@ input:focus,textarea:focus,select:focus { border-color:var(--terracotta); box-sh
 .note-card p { color:var(--muted); font-size:.82rem; white-space:pre-wrap; }
 .delete-button { border:0; background:transparent; color:var(--muted); cursor:pointer; }
 .note-card .delete-button,.goal-card .delete-button { position:absolute; top:15px; right:15px; }
-.diet-form { grid-template-columns:1fr 2fr 1fr 1fr auto; align-items:end; }
-.summary-strip { display:flex; flex-wrap:wrap; gap:10px; margin:20px 0; }
-.summary-strip span { border-radius:999px; background:var(--sage); padding:10px 14px; font-size:.75rem; }
-.entry-list { display:grid; gap:10px; }
-.diet-entry { display:grid; grid-template-columns:110px 1fr auto auto; align-items:center; gap:16px; border:1px solid var(--line); border-radius:18px; background:var(--surface); padding:15px 18px; }
-.diet-entry small { color:var(--muted); }
 .goal-form { grid-template-columns:1fr 180px auto; }
 .goal-board { display:grid; grid-template-columns:repeat(3,1fr); gap:15px; margin-top:22px; }
 .goal-card { background:var(--sun); }
@@ -152,7 +146,7 @@ body > footer { display:flex; width:min(1180px,calc(100% - 40px)); justify-conte
   .overview a:nth-child(2) { border-right:0; }
   .overview a:nth-child(-n+2) { border-bottom:1px solid var(--line); }
   .section-heading { grid-template-columns:1fr; gap:17px; }
-  .entry-form,.diet-form { grid-template-columns:1fr 1fr; }
+  .entry-form { grid-template-columns:1fr 1fr; }
   .entry-form label:nth-child(2) { grid-column:1/-1; }
   .card-grid,.goal-board { grid-template-columns:1fr 1fr; }
   .drawing-actions { width:100%; margin-left:0; }
@@ -182,10 +176,8 @@ body > footer { display:flex; width:min(1180px,calc(100% - 40px)); justify-conte
   .size-control { flex:1; }
   .size-control input { flex:1; width:auto; }
   .pencil-telemetry { right:7px; bottom:7px; left:7px; justify-content:center; }
-  .entry-form,.diet-form,.goal-form,.card-grid,.goal-board { grid-template-columns:1fr; }
+  .entry-form,.goal-form,.card-grid,.goal-board { grid-template-columns:1fr; }
   .entry-form label:nth-child(2) { grid-column:auto; }
-  .diet-entry { grid-template-columns:1fr auto; }
-  .diet-entry strong { grid-column:1/-1; }
   body > footer { display:grid; text-align:left; }
 }
 
@@ -204,12 +196,12 @@ body > footer { display:flex; width:min(1180px,calc(100% - 40px)); justify-conte
 .content-section { padding-block:90px 24px; }
 .section-heading { display:block; margin-bottom:26px; }
 .section-heading h1,.section-heading h2 { font-size:clamp(2.5rem,5vw,4.8rem); }
-.drawing-studio,.entry-form,.diet-form,.goal-form,.music-library { border-radius:14px; box-shadow:none; }
+.drawing-studio,.entry-form,.goal-form,.music-library { border-radius:14px; box-shadow:none; }
 .drawing-heading h2,.drawing-heading h3,.gallery-heading,.library-title h2,.library-title h3 { font-size:1.55rem; }
 .drawing-toolbar button { border-radius:9px; }
 .drop-zone { border-radius:14px; background:var(--surface); padding:22px; }
 .drop-zone > span { border:1px solid var(--line); border-radius:10px; background:var(--canvas); }
-.note-card,.goal-card,.diet-entry,.art-card { border-radius:13px; }
+.note-card,.goal-card,.art-card { border-radius:13px; }
 .goal-card { background:var(--surface); }
 .music-drop { background:var(--surface); }
 

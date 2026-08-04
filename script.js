@@ -1,8 +1,14 @@
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const KEYS = { theme: "rauny_theme", dentistry: "rauny_dentistry_notes", diet: "rauny_diet_log", goals: "rauny_goal_board" };
+const KEYS = { theme: "rauny_theme", dentistry: "rauny_dentistry_notes", goals: "rauny_goal_board" };
 const CLOUD_ADMIN_EMAIL = "anthonyamaru93@gmail.com";
-const CLOUD_CONTENT_KEYS = { [KEYS.dentistry]: "dentistry", [KEYS.diet]: "diet", [KEYS.goals]: "goals" };
+const CLOUD_CONTENT_KEYS = { [KEYS.dentistry]: "dentistry", [KEYS.goals]: "goals" };
+const PRIMARY_NAV_ITEMS = [
+  ["resume.html", "Resume"],
+  ["interests.html", "Interests"],
+  ["music.html", "Music"],
+  ["goals.html", "Goals"],
+];
 let toastTimer;
 let tracks = [];
 let currentTrackId = null;
@@ -30,6 +36,14 @@ function applyTheme(theme) {
   const toggle = $("#theme-toggle");
   if (toggle) toggle.textContent = theme === "dark" ? "☀" : "☾";
   localStorage.setItem(KEYS.theme, theme);
+}
+
+function normalizePrimaryNavigation() {
+  const nav = $("#primary-nav");
+  if (!nav) return;
+  let currentPage = location.pathname.split("/").pop() || "index.html";
+  if (currentPage === "art.html") currentPage = "interests.html";
+  nav.innerHTML = PRIMARY_NAV_ITEMS.map(([href, label]) => `<a href="${href}"${currentPage === href ? ' aria-current="page"' : ""}>${label}</a>`).join("");
 }
 
 function updateCloudStatus() {
@@ -70,7 +84,7 @@ async function syncRaunyWorkspace() {
   try {
     await Promise.all(Object.keys(CLOUD_CONTENT_KEYS).map(syncCloudList));
     await migrateLocalArtwork();
-    renderDentistry(); renderDiet(); renderGoals();
+    renderDentistry(); renderGoals();
     await renderArt();
     updateCloudStatus();
     toast("Private workspace synced across devices.");
@@ -107,16 +121,6 @@ function renderDentistry() {
   if (!$("#dentistry-notes")) return;
   const notes = read(KEYS.dentistry);
   $("#dentistry-notes").innerHTML = notes.length ? notes.map((note) => `<article class="note-card"><span>${escapeHtml(note.date)}</span><button class="delete-button" data-delete-note="${note.id}" aria-label="Delete ${escapeHtml(note.topic)}">×</button><h3>${escapeHtml(note.topic)}</h3><p>${escapeHtml(note.note)}</p></article>`).join("") : '<div class="empty-state">No notes yet</div>';
-}
-
-function renderDiet() {
-  if (!$("#diet-entries") || !$("#diet-summary")) return;
-  const entries = read(KEYS.diet).sort((a, b) => b.id - a.id);
-  const today = new Date().toISOString().slice(0, 10);
-  const todayEntries = entries.filter((entry) => entry.date === today);
-  const water = todayEntries.reduce((sum, entry) => sum + Number(entry.water || 0), 0);
-  $("#diet-summary").innerHTML = `<span>${todayEntries.length} ${todayEntries.length === 1 ? "entry" : "entries"} today</span><span>${water} cups of water logged today</span>`;
-  $("#diet-entries").innerHTML = entries.length ? entries.map((entry) => `<article class="diet-entry"><small>${escapeHtml(entry.date)}</small><strong>${escapeHtml(entry.meal)}</strong><span>${Number(entry.water)} cups · ${escapeHtml(entry.energy)} energy</span><button class="delete-button" data-delete-diet="${entry.id}" aria-label="Delete diet entry">×</button></article>`).join("") : '<div class="empty-state">No entries yet</div>';
 }
 
 function renderGoals() {
@@ -485,6 +489,7 @@ function bindDropZone(zoneSelector, inputSelector, chooseSelector, handler) {
   input.addEventListener("change", (event) => { handler([...event.target.files]); event.target.value = ""; });
 }
 
+normalizePrimaryNavigation();
 $("#menu-toggle").addEventListener("click", () => { const nav = $("#primary-nav"); nav.classList.toggle("open"); $("#menu-toggle").setAttribute("aria-expanded", String(nav.classList.contains("open"))); });
 $$('#primary-nav a').forEach((link) => link.addEventListener("click", () => $("#primary-nav").classList.remove("open")));
 $("#theme-toggle").addEventListener("click", () => applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
@@ -492,9 +497,6 @@ $("#cloud-status").addEventListener("click", ensureCloudAdmin);
 
 $("#dentistry-form")?.addEventListener("submit", async (event) => { event.preventDefault(); if (!(await ensureCloudAdmin())) return; const notes = read(KEYS.dentistry); notes.unshift({ id: Date.now(), topic: $("#dentistry-topic").value.trim(), note: $("#dentistry-note").value.trim(), date: new Date().toLocaleDateString() }); await saveCloudList(KEYS.dentistry, notes); event.target.reset(); renderDentistry(); toast("Dentistry note synced."); });
 $("#dentistry-notes")?.addEventListener("click", async (event) => { const button = event.target.closest("[data-delete-note]"); if (!button || !(await ensureCloudAdmin())) return; await saveCloudList(KEYS.dentistry, read(KEYS.dentistry).filter((item) => item.id !== Number(button.dataset.deleteNote))); renderDentistry(); });
-
-$("#diet-form")?.addEventListener("submit", async (event) => { event.preventDefault(); if (!(await ensureCloudAdmin())) return; const entries = read(KEYS.diet); entries.push({ id: Date.now(), date: $("#diet-date").value, meal: $("#diet-meal").value.trim(), water: Number($("#diet-water").value || 0), energy: $("#diet-energy").value }); await saveCloudList(KEYS.diet, entries); $("#diet-meal").value = ""; $("#diet-water").value = 0; renderDiet(); toast("Diet entry synced."); });
-$("#diet-entries")?.addEventListener("click", async (event) => { const button = event.target.closest("[data-delete-diet]"); if (!button || !(await ensureCloudAdmin())) return; await saveCloudList(KEYS.diet, read(KEYS.diet).filter((item) => item.id !== Number(button.dataset.deleteDiet))); renderDiet(); });
 
 $("#goal-form")?.addEventListener("submit", async (event) => { event.preventDefault(); if (!(await ensureCloudAdmin())) return; const goals = read(KEYS.goals); goals.unshift({ id: Date.now(), title: $("#goal-title").value.trim(), area: $("#goal-area").value, done: false }); await saveCloudList(KEYS.goals, goals); event.target.reset(); renderGoals(); toast("Goal synced to the board."); });
 $("#goal-board")?.addEventListener("click", async (event) => { const toggle = event.target.closest("[data-toggle-goal]"); const remove = event.target.closest("[data-delete-goal]"); if ((!toggle && !remove) || !(await ensureCloudAdmin())) return; const goals = read(KEYS.goals); if (toggle) { const goal = goals.find((item) => item.id === Number(toggle.dataset.toggleGoal)); if (goal) goal.done = !goal.done; } if (remove) { const index = goals.findIndex((item) => item.id === Number(remove.dataset.deleteGoal)); if (index >= 0) goals.splice(index, 1); } await saveCloudList(KEYS.goals, goals); renderGoals(); });
@@ -538,6 +540,5 @@ $("#audio-player").addEventListener("ended", () => stepTrack(1));
 bindDropZone("#art-drop-zone", "#art-file-input", "#choose-art", addArtFiles);
 bindDropZone("#music-drop-zone", "#music-file-input", "#choose-music", addMusicFiles);
 applyTheme(localStorage.getItem(KEYS.theme) || "light");
-if ($("#diet-date")) $("#diet-date").value = new Date().toISOString().slice(0, 10);
-initializeDrawingStudio(); renderDentistry(); renderDiet(); renderGoals(); renderArt(); renderMusic(); updateCloudStatus();
+initializeDrawingStudio(); renderDentistry(); renderGoals(); renderArt(); renderMusic(); updateCloudStatus();
 if (musicCloud.isSignedIn()) syncRaunyWorkspace();

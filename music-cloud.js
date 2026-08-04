@@ -127,6 +127,15 @@
       return (await readResponse(await fetch(url, { headers: this.headers() }))) || [];
     }
 
+    async invokeFunction(name, body) {
+      this.requireAdmin();
+      return readResponse(await fetch(`${PROJECT_URL}/functions/v1/${encodeURIComponent(name)}`, {
+        method: "POST",
+        headers: this.headers({ "Content-Type": "application/json" }, true),
+        body: JSON.stringify(body),
+      }));
+    }
+
     async getContent(site, contentKey) {
       this.requireAdmin();
       const url = `${PROJECT_URL}/rest/v1/site_content?select=value,updated_at&site=eq.${encodeURIComponent(site)}&content_key=eq.${encodeURIComponent(contentKey)}&limit=1`;

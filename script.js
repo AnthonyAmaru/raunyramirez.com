@@ -6,6 +6,7 @@ const CLOUD_CONTENT_KEYS = { [KEYS.dentistry]: "dentistry", [KEYS.goals]: "goals
 const PRIMARY_NAV_ITEMS = [
   ["resume.html", "Resume"],
   ["interests.html", "Interests"],
+  ["ai.html", "AI"],
   ["music.html", "Music"],
   ["goals.html", "Goals"],
 ];
@@ -37,6 +38,7 @@ let lastPencilTap = null;
 let shoppingProducts = [];
 let shoppingStore = "all";
 let shoppingCategory = "all";
+let raunyAiMessages = [];
 
 function read(key) {
   try { return JSON.parse(localStorage.getItem(key)) || []; } catch { return []; }
@@ -236,6 +238,40 @@ async function initializeShopping() {
   $("#shopping-category-filters").addEventListener("click", (event) => { const button = event.target.closest("[data-shopping-category]"); if (!button) return; shoppingCategory = button.dataset.shoppingCategory; renderShoppingProducts(); });
   $("#shopping-search").addEventListener("input", () => renderShoppingProducts());
   $("#shopping-sort").addEventListener("change", () => renderShoppingProducts());
+}
+
+function renderRaunyAi() {
+  const thread = $("#rauny-ai-thread");
+  if (!thread) return;
+  thread.innerHTML = raunyAiMessages.length ? raunyAiMessages.map((message) => `<article class="ai-message ${message.role}"><span>${message.role === "user" ? "You" : "AI"}</span><p>${escapeHtml(message.content)}</p></article>`).join("") : '<div class="ai-empty"><strong>Ask anything</strong></div>';
+  thread.scrollTop = thread.scrollHeight;
+}
+
+async function askRaunyAi(event) {
+  event.preventDefault();
+  const input = $("#rauny-ai-input");
+  const question = input.value.trim();
+  if (!question || !(await ensureCloudAdmin())) return;
+  const topic = $("#rauny-ai-topic").value;
+  const history = raunyAiMessages.slice(-10);
+  raunyAiMessages.push({ role: "user", content: question });
+  input.value = "";
+  renderRaunyAi();
+  const send = $("#rauny-ai-send");
+  send.disabled = true;
+  send.textContent = "Thinking…";
+  try {
+    const result = await musicCloud.invokeFunction("big-pickle", { scope: "rauny", topic, message: question, history });
+    if (typeof result.content !== "string") throw new Error("The AI response was empty.");
+    raunyAiMessages.push({ role: "assistant", content: result.content.trim() });
+  } catch (error) {
+    raunyAiMessages.push({ role: "assistant", content: `I couldn't answer that: ${error.message}` });
+  } finally {
+    send.disabled = false;
+    send.textContent = "Ask";
+    renderRaunyAi();
+    input.focus();
+  }
 }
 
 async function addArtFiles(files) {
@@ -639,6 +675,9 @@ $("#select-all-tracks")?.addEventListener("change", (event) => {
   updateTrackSelectionControls();
 });
 $("#delete-selected-tracks")?.addEventListener("click", deleteSelectedTracks);
+$("#rauny-ai-form")?.addEventListener("submit", askRaunyAi);
+$("#rauny-ai-clear")?.addEventListener("click", () => { raunyAiMessages = []; renderRaunyAi(); });
+$("#rauny-ai-input")?.addEventListener("keydown", (event) => { if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) event.currentTarget.form.requestSubmit(); });
 $("#toggle-track").addEventListener("click", () => { const player = $("#audio-player"); if (!player.src && tracks.length) return playTrack(tracks[0].id); if (player.paused) player.play(); else player.pause(); });
 $("#previous-track").addEventListener("click", () => stepTrack(-1));
 $("#next-track").addEventListener("click", () => stepTrack(1));
@@ -649,5 +688,5 @@ $("#audio-player").addEventListener("ended", () => stepTrack(1));
 bindDropZone("#art-drop-zone", "#art-file-input", "#choose-art", addArtFiles);
 bindDropZone("#music-drop-zone", "#music-file-input", "#choose-music", addMusicFiles);
 applyTheme(localStorage.getItem(KEYS.theme) || "light");
-initializeDrawingStudio(); renderDentistry(); renderGoals(); renderArt(); renderMusic(); initializeShopping(); updateCloudStatus();
+initializeDrawingStudio(); renderDentistry(); renderGoals(); renderArt(); renderMusic(); initializeShopping(); renderRaunyAi(); updateCloudStatus();
 if (musicCloud.isSignedIn()) syncRaunyWorkspace();

@@ -29,6 +29,11 @@ let playlists = [];
 let visibleTracks = [];
 let currentPlaylist = "all";
 let currentArtist = "all";
+let currentSongQuery = "";
+let musicSortColumn = "song";
+let musicSortDirection = "asc";
+let editingTrackId = null;
+let musicCloudError = "";
 let currentTrackId = null;
 let playerStateRestored = false;
 const selectedTrackIds = new Set();
@@ -58,6 +63,22 @@ function trackArtist(track) {
   if (stored) return stored;
   const base = String(track?.file_name || track?.title || "").replace(/\.[^.]+$/, "").replace(/\s*\[[\w-]{6,}\]\s*$/, "").trim();
   return base.match(/^(.+?)\s[-–—]\s.+$/)?.[1]?.trim() || "Unknown artist";
+}
+function trackPlaylistName(track) { return playlists.find((playlist) => String(playlist.id) === String(track.playlist_id))?.name || "No playlist"; }
+function updateMusicSortControls() {
+  $$('[data-sort-column]').forEach((button) => {
+    const active = button.dataset.sortColumn === musicSortColumn;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+    const indicator = $("[data-sort-indicator]", button);
+    if (indicator) indicator.textContent = active ? (musicSortDirection === "asc" ? "A→Z" : "Z→A") : "↕";
+  });
+}
+function setMusicSort(column) {
+  if (!["song", "artist", "playlist"].includes(column)) return;
+  if (musicSortColumn === column) musicSortDirection = musicSortDirection === "asc" ? "desc" : "asc";
+  else { musicSortColumn = column; musicSortDirection = "asc"; }
+  renderMusicRows();
 }
 function toast(message) { const node = $("#toast"); node.textContent = message; node.classList.add("visible"); clearTimeout(toastTimer); toastTimer = setTimeout(() => node.classList.remove("visible"), 2600); }
 function safeExternalUrl(value) { try { const url = new URL(value); return ["http:", "https:"].includes(url.protocol) ? url.href : ""; } catch { return ""; } }
@@ -769,43 +790,66 @@ async function addMusicFiles(files) {
 
 async function renderMusic() {
   const previousBulkPlaylist = $("#bulk-playlist-select")?.value || "";
-  let errorMessage = "";
   try {
     const library = await musicCloud.list("rauny");
     tracks = library.tracks;
     playlists = library.playlists;
+    musicCloudError = "";
   } catch (error) {
     tracks = [];
     playlists = [];
-    errorMessage = error.message;
+    musicCloudError = error.message;
   }
-  const selectedPlaylist = playlists.find((playlist) => String(playlist.id) === currentPlaylist);
-  const playlistTracks = currentPlaylist === "all" ? tracks : tracks.filter((track) => track.playlist_id === selectedPlaylist?.id);
-  const artists = [...new Set(playlistTracks.map(trackArtist))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+  if (!$("#track-list")) return restoreMusicPlayerState();
+  const artists = [...new Set(tracks.map(trackArtist))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
   if (currentArtist !== "all" && !artists.includes(currentArtist)) currentArtist = "all";
-  if ($("#artist-filter")) {
-    $("#artist-filter").innerHTML = `<option value="all">All artists</option>${artists.map((artist) => `<option value="${escapeHtml(artist)}">${escapeHtml(artist)}</option>`).join("")}`;
-    $("#artist-filter").value = currentArtist;
-  }
-  visibleTracks = currentArtist === "all" ? playlistTracks : playlistTracks.filter((track) => trackArtist(track) === currentArtist);
-  const availableIds = new Set(tracks.map((track) => String(track.id)));
-  [...selectedTrackIds].forEach((id) => { if (!availableIds.has(id)) selectedTrackIds.delete(id); });
-  if ($("#track-count")) $("#track-count").textContent = `${visibleTracks.length} ${visibleTracks.length === 1 ? "song" : "songs"}`;
-  if ($("#all-track-count")) $("#all-track-count").textContent = tracks.length;
-  if ($("#library-title")) $("#library-title").textContent = currentPlaylist === "all" ? "All music" : selectedPlaylist?.name || "Playlist";
-  if ($("#playlist-list")) $("#playlist-list").innerHTML = playlists.map((playlist) => `<button class="playlist-row ${currentPlaylist === String(playlist.id) ? "active" : ""}" type="button" data-playlist="${playlist.id}"><span>♬</span><strong>${escapeHtml(playlist.name)}</strong><small>${tracks.filter((track) => track.playlist_id === playlist.id).length}</small></button>`).join("");
-  $$(".playlist-row[data-playlist='all']").forEach((button) => button.classList.toggle("active", currentPlaylist === "all"));
+  if (currentPlaylist !== "all" && currentPlaylist !== "none" && !playlists.some((playlist) => String(playlist.id) === currentPlaylist)) currentPlaylist = "all";
+  $("#artist-filter").innerHTML = `<option value="all">All artists</option>${artists.map((artist) => `<option value="${escapeHtml(artist)}">${escapeHtml(artist)}</option>`).join("")}`;
   const playlistOptions = playlists.map((playlist) => `<option value="${playlist.id}">${escapeHtml(playlist.name)}</option>`).join("");
+  $("#playlist-filter").innerHTML = `<option value="all">All playlists</option><option value="none">No playlist</option>${playlistOptions}`;
+  if ($("#all-track-count")) $("#all-track-count").textContent = tracks.length;
+  if ($("#playlist-list")) $("#playlist-list").innerHTML = playlists.map((playlist) => `<button class="playlist-row ${currentPlaylist === String(playlist.id) ? "active" : ""}" type="button" data-playlist="${playlist.id}"><span>♬</span><strong>${escapeHtml(playlist.name)}</strong><small>${tracks.filter((track) => track.playlist_id === playlist.id).length}</small></button>`).join("");
   if ($("#bulk-playlist-select")) {
     $("#bulk-playlist-select").innerHTML = `<option value="">Playlist</option>${playlistOptions}`;
     if (playlists.some((playlist) => String(playlist.id) === previousBulkPlaylist)) $("#bulk-playlist-select").value = previousBulkPlaylist;
   }
-  if ($("#track-list")) {
-    $("#track-list").innerHTML = errorMessage ? `<div class="empty-state">Cloud library unavailable: ${escapeHtml(errorMessage)}</div>` : visibleTracks.length ? visibleTracks.map((track) => `<article class="track-row"><input class="track-select" type="checkbox" data-select-track="${track.id}" aria-label="Select ${escapeHtml(track.title)}" ${selectedTrackIds.has(String(track.id)) ? "checked" : ""} /><button class="track-play" data-play-track="${track.id}" aria-label="Play ${escapeHtml(track.title)}">▶</button><div><strong>${escapeHtml(track.title)}</strong><small>${escapeHtml(trackArtist(track))} · ${formatBytes(track.size_bytes)}</small></div><select data-assign-track="${track.id}" aria-label="Move ${escapeHtml(track.title)} to playlist"><option value="">No playlist</option>${playlistOptions}</select><button class="delete-button" data-delete-track="${track.id}" aria-label="Delete ${escapeHtml(track.title)}">×</button></article>`).join("") : `<div class="empty-state">${playlistTracks.length ? "No songs match this artist" : "No music here yet"}</div>`;
-    $$('[data-assign-track]').forEach((select) => { const track = tracks.find((item) => String(item.id) === String(select.dataset.assignTrack)); select.value = track?.playlist_id || ""; });
-  }
-  updateTrackSelectionControls();
+  renderMusicRows();
   restoreMusicPlayerState();
+}
+
+function renderMusicRows() {
+  const selectedPlaylist = playlists.find((playlist) => String(playlist.id) === currentPlaylist);
+  const normalizedQuery = currentSongQuery.trim().toLocaleLowerCase();
+  visibleTracks = tracks.filter((track) => {
+    const matchesSong = !normalizedQuery || String(track.title || "").toLocaleLowerCase().includes(normalizedQuery);
+    const matchesArtist = currentArtist === "all" || trackArtist(track) === currentArtist;
+    const matchesPlaylist = currentPlaylist === "all" || (currentPlaylist === "none" ? !track.playlist_id : String(track.playlist_id) === currentPlaylist);
+    return matchesSong && matchesArtist && matchesPlaylist;
+  });
+  const collator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
+  const sortValue = (track) => musicSortColumn === "artist" ? trackArtist(track) : musicSortColumn === "playlist" ? trackPlaylistName(track) : String(track.title || "");
+  visibleTracks.sort((left, right) => {
+    const compared = collator.compare(sortValue(left), sortValue(right));
+    return (compared || collator.compare(String(left.title || ""), String(right.title || ""))) * (musicSortDirection === "asc" ? 1 : -1);
+  });
+  const availableIds = new Set(tracks.map((track) => String(track.id)));
+  [...selectedTrackIds].forEach((id) => { if (!availableIds.has(id)) selectedTrackIds.delete(id); });
+  $("#artist-filter").value = currentArtist;
+  $("#playlist-filter").value = currentPlaylist;
+  $("#track-count").textContent = `${visibleTracks.length} ${visibleTracks.length === 1 ? "song" : "songs"}`;
+  $("#library-title").textContent = currentPlaylist === "all" ? "All music" : currentPlaylist === "none" ? "No playlist" : selectedPlaylist?.name || "Playlist";
+  $$(".playlist-row[data-playlist]").forEach((button) => button.classList.toggle("active", button.dataset.playlist === currentPlaylist));
+  const playlistOptions = playlists.map((playlist) => `<option value="${playlist.id}">${escapeHtml(playlist.name)}</option>`).join("");
+  $("#track-list").innerHTML = musicCloudError ? `<div class="empty-state">Cloud library unavailable: ${escapeHtml(musicCloudError)}</div>` : visibleTracks.length ? visibleTracks.map((track) => {
+    const editing = editingTrackId === String(track.id);
+    const songCell = editing ? `<input class="track-edit-input" data-edit-title type="text" maxlength="200" value="${escapeHtml(track.title)}" aria-label="Song title" />` : `<div class="track-song"><strong>${escapeHtml(track.title)}</strong><small>${formatBytes(track.size_bytes)}</small></div>`;
+    const artistCell = editing ? `<input class="track-edit-input" data-edit-artist type="text" maxlength="200" value="${escapeHtml(trackArtist(track))}" aria-label="Artist name" />` : `<div class="track-artist" title="${escapeHtml(trackArtist(track))}">${escapeHtml(trackArtist(track))}</div>`;
+    const actions = editing ? `<div class="track-row-actions"><button class="track-save" type="button" data-save-track="${track.id}">Save</button><button class="track-cancel" type="button" data-cancel-track="${track.id}" aria-label="Cancel editing">×</button></div>` : `<div class="track-row-actions"><button class="track-edit" type="button" data-edit-track="${track.id}" aria-label="Edit ${escapeHtml(track.title)}">✎</button><button class="delete-button" type="button" data-delete-track="${track.id}" aria-label="Delete ${escapeHtml(track.title)}">×</button></div>`;
+    return `<article class="track-row${editing ? " editing" : ""}" data-track-row="${track.id}"><input class="track-select" type="checkbox" data-select-track="${track.id}" aria-label="Select ${escapeHtml(track.title)}" ${selectedTrackIds.has(String(track.id)) ? "checked" : ""} /><button class="track-play" data-play-track="${track.id}" aria-label="Play ${escapeHtml(track.title)}">▶</button>${songCell}${artistCell}<select class="track-playlist-select" data-assign-track="${track.id}" aria-label="Playlist for ${escapeHtml(track.title)}"><option value="">No playlist</option>${playlistOptions}</select>${actions}</article>`;
+  }).join("") : `<div class="empty-state">${tracks.length ? "No songs match these filters" : "No music here yet"}</div>`;
+  $$('[data-assign-track]').forEach((select) => { const track = tracks.find((item) => String(item.id) === String(select.dataset.assignTrack)); select.value = track?.playlist_id || ""; });
+  updateMusicSortControls();
+  updateTrackSelectionControls();
 }
 
 function readMusicPlayerState() {
@@ -906,6 +950,29 @@ async function assignTrack(trackId, playlistId) {
   } catch (error) { toast(error.message); renderMusic(); }
 }
 
+async function saveTrackEdits(button) {
+  const row = button.closest("[data-track-row]");
+  const track = tracks.find((item) => String(item.id) === String(row?.dataset.trackRow));
+  if (!row || !track) return;
+  const title = $("[data-edit-title]", row)?.value.trim() || "";
+  const artist = $("[data-edit-artist]", row)?.value.trim() || "";
+  if (!title || !artist) return toast("Song and artist names cannot be empty.");
+  if (!(await ensureCloudAdmin())) return;
+  button.disabled = true;
+  button.textContent = "Saving…";
+  try {
+    await musicCloud.updateTrackMetadata(track, title, artist);
+    editingTrackId = null;
+    await renderMusic();
+    if (String(currentTrackId) === String(track.id)) $("#now-playing").textContent = title;
+    toast("Song details saved to the cloud.");
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = "Save";
+    toast(error.message);
+  }
+}
+
 async function assignSelectedTracks() {
   const selected = tracks.filter((track) => selectedTrackIds.has(String(track.id)));
   const playlistId = $("#bulk-playlist-select")?.value;
@@ -977,8 +1044,18 @@ $("#goal-board")?.addEventListener("click", async (event) => { const toggle = ev
 
 $("#art-gallery")?.addEventListener("click", async (event) => { const button = event.target.closest("[data-delete-art]"); if (!button) return; const alreadySignedIn = musicCloud.isSignedIn(); if (!(await ensureCloudAdmin())) return; if (!alreadySignedIn) return renderArt(); const item = artItems.find((candidate) => candidate.id === button.dataset.deleteArt); if (!item || !confirm(`Delete ${item.name} from the private cloud gallery?`)) return; await musicCloud.deleteArt(item); renderArt(); });
 $("#track-list")?.addEventListener("click", async (event) => {
+  const edit = event.target.closest("[data-edit-track]");
+  const save = event.target.closest("[data-save-track]");
+  const cancel = event.target.closest("[data-cancel-track]");
   const play = event.target.closest("[data-play-track]");
   const remove = event.target.closest("[data-delete-track]");
+  if (edit) {
+    editingTrackId = String(edit.dataset.editTrack);
+    renderMusicRows();
+    return requestAnimationFrame(() => document.querySelector(`[data-track-row='${editingTrackId}'] [data-edit-title]`)?.focus());
+  }
+  if (save) return saveTrackEdits(save);
+  if (cancel) { editingTrackId = null; return renderMusicRows(); }
   if (play) playTrack(play.dataset.playTrack);
   if (remove && await ensureCloudAdmin() && confirm("Delete this song from the cloud library?")) {
     const track = tracks.find((item) => item.id === remove.dataset.deleteTrack);
@@ -990,6 +1067,12 @@ $("#track-list")?.addEventListener("click", async (event) => {
       renderMusic();
     } catch (error) { toast(error.message); }
   }
+});
+$("#track-list")?.addEventListener("keydown", (event) => {
+  if (!event.target.matches("[data-edit-title], [data-edit-artist]")) return;
+  const row = event.target.closest("[data-track-row]");
+  if (event.key === "Enter") { event.preventDefault(); $("[data-save-track]", row)?.click(); }
+  if (event.key === "Escape") { event.preventDefault(); editingTrackId = null; renderMusicRows(); }
 });
 $("#track-list")?.addEventListener("change", (event) => {
   const checkbox = event.target.closest("[data-select-track]");
@@ -1009,7 +1092,10 @@ $("#select-all-tracks")?.addEventListener("change", (event) => {
 $("#new-playlist")?.addEventListener("click", createPlaylist);
 $("#assign-selected-tracks")?.addEventListener("click", assignSelectedTracks);
 $("#bulk-playlist-select")?.addEventListener("change", updateTrackSelectionControls);
-$("#artist-filter")?.addEventListener("change", (event) => { selectedTrackIds.clear(); currentArtist = event.target.value; renderMusic(); });
+$("#song-filter")?.addEventListener("input", (event) => { selectedTrackIds.clear(); currentSongQuery = event.target.value; renderMusicRows(); });
+$("#artist-filter")?.addEventListener("change", (event) => { selectedTrackIds.clear(); currentArtist = event.target.value; renderMusicRows(); });
+$("#playlist-filter")?.addEventListener("change", (event) => { selectedTrackIds.clear(); currentPlaylist = event.target.value; renderMusicRows(); });
+$$('[data-sort-column]').forEach((button) => button.addEventListener("click", () => setMusicSort(button.dataset.sortColumn)));
 $(".music-workspace")?.addEventListener("click", (event) => {
   const playlist = event.target.closest("[data-playlist]");
   if (!playlist) return;

@@ -743,6 +743,7 @@ async function addMusicFiles(files) {
 }
 
 async function renderMusic() {
+  const previousBulkPlaylist = $("#bulk-playlist-select")?.value || "";
   let errorMessage = "";
   try {
     const library = await musicCloud.list("rauny");
@@ -763,6 +764,10 @@ async function renderMusic() {
   if ($("#playlist-list")) $("#playlist-list").innerHTML = playlists.map((playlist) => `<button class="playlist-row ${currentPlaylist === String(playlist.id) ? "active" : ""}" type="button" data-playlist="${playlist.id}"><span>♬</span><strong>${escapeHtml(playlist.name)}</strong><small>${tracks.filter((track) => track.playlist_id === playlist.id).length}</small></button>`).join("");
   $$(".playlist-row[data-playlist='all']").forEach((button) => button.classList.toggle("active", currentPlaylist === "all"));
   const playlistOptions = playlists.map((playlist) => `<option value="${playlist.id}">${escapeHtml(playlist.name)}</option>`).join("");
+  if ($("#bulk-playlist-select")) {
+    $("#bulk-playlist-select").innerHTML = `<option value="">Playlist</option>${playlistOptions}`;
+    if (playlists.some((playlist) => String(playlist.id) === previousBulkPlaylist)) $("#bulk-playlist-select").value = previousBulkPlaylist;
+  }
   if ($("#track-list")) {
     $("#track-list").innerHTML = errorMessage ? `<div class="empty-state">Cloud library unavailable: ${escapeHtml(errorMessage)}</div>` : visibleTracks.length ? visibleTracks.map((track) => `<article class="track-row"><input class="track-select" type="checkbox" data-select-track="${track.id}" aria-label="Select ${escapeHtml(track.title)}" ${selectedTrackIds.has(String(track.id)) ? "checked" : ""} /><button class="track-play" data-play-track="${track.id}" aria-label="Play ${escapeHtml(track.title)}">▶</button><div><strong>${escapeHtml(track.title)}</strong><small>${formatBytes(track.size_bytes)}</small></div><select data-assign-track="${track.id}" aria-label="Move ${escapeHtml(track.title)} to playlist"><option value="">No playlist</option>${playlistOptions}</select><button class="delete-button" data-delete-track="${track.id}" aria-label="Delete ${escapeHtml(track.title)}">×</button></article>`).join("") : '<div class="empty-state">No music here yet</div>';
     $$('[data-assign-track]').forEach((select) => { const track = tracks.find((item) => String(item.id) === String(select.dataset.assignTrack)); select.value = track?.playlist_id || ""; });
@@ -802,6 +807,8 @@ function restoreMusicPlayerState() {
 function updateTrackSelectionControls() {
   const selectAll = $("#select-all-tracks");
   const deleteButton = $("#delete-selected-tracks");
+  const bulkSelect = $("#bulk-playlist-select");
+  const assignButton = $("#assign-selected-tracks");
   if (!selectAll || !deleteButton) return;
   const ids = visibleTracks.map((track) => String(track.id));
   const selectedCount = ids.filter((id) => selectedTrackIds.has(id)).length;
@@ -810,6 +817,11 @@ function updateTrackSelectionControls() {
   selectAll.indeterminate = selectedCount > 0 && selectedCount < ids.length;
   deleteButton.disabled = selectedTrackIds.size === 0;
   deleteButton.textContent = selectedTrackIds.size ? `Delete ${selectedTrackIds.size}` : "Delete";
+  if (bulkSelect) bulkSelect.disabled = bulkSelect.options.length <= 1;
+  if (assignButton) {
+    assignButton.disabled = selectedTrackIds.size === 0 || !bulkSelect?.value;
+    assignButton.textContent = selectedTrackIds.size ? `Add ${selectedTrackIds.size}` : "Add selected";
+  }
 }
 
 async function deleteSelectedTracks() {
@@ -860,6 +872,26 @@ async function assignTrack(trackId, playlistId) {
     await renderMusic();
     toast(playlistId ? "Song moved to the selected playlist." : "Song removed from playlists.");
   } catch (error) { toast(error.message); renderMusic(); }
+}
+
+async function assignSelectedTracks() {
+  const selected = tracks.filter((track) => selectedTrackIds.has(String(track.id)));
+  const playlistId = $("#bulk-playlist-select")?.value;
+  if (!selected.length) return;
+  if (!playlistId) return toast("Choose a playlist.");
+  if (!(await ensureCloudAdmin())) return;
+  const button = $("#assign-selected-tracks");
+  button.disabled = true;
+  button.textContent = "Adding…";
+  try {
+    await musicCloud.assignTracks(selected.map((track) => track.id), playlistId);
+  } catch (error) {
+    toast(error.message);
+    return updateTrackSelectionControls();
+  }
+  selectedTrackIds.clear();
+  await renderMusic();
+  toast(`${selected.length} song${selected.length === 1 ? "" : "s"} added to the playlist.`);
 }
 
 async function ensureCloudAdmin() {
@@ -942,6 +974,8 @@ $("#select-all-tracks")?.addEventListener("change", (event) => {
   updateTrackSelectionControls();
 });
 $("#new-playlist")?.addEventListener("click", createPlaylist);
+$("#assign-selected-tracks")?.addEventListener("click", assignSelectedTracks);
+$("#bulk-playlist-select")?.addEventListener("change", updateTrackSelectionControls);
 $(".music-workspace")?.addEventListener("click", (event) => {
   const playlist = event.target.closest("[data-playlist]");
   if (!playlist) return;

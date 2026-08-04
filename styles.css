@@ -133,6 +133,8 @@ input:focus,textarea:focus,select:focus { border-color:var(--terracotta); box-sh
 .library-title h2,.library-title h3 { margin:0; font-size:2rem; }
 .library-title small { color:var(--muted); }
 .library-actions { display:flex; align-items:center; gap:8px; }
+.bulk-playlist-select { max-width:160px; min-height:40px; border:1px solid var(--line); border-radius:10px; background:var(--surface); color:var(--ink); padding:0 10px; font:inherit; font-size:.7rem; font-weight:700; }
+.bulk-playlist-select:disabled { opacity:.45; }
 .select-all-control { display:inline-flex; min-height:40px; align-items:center; gap:7px; border:1px solid var(--line); border-radius:10px; padding:0 11px; color:var(--muted); cursor:pointer; font-size:.7rem; font-weight:750; }
 .select-all-control input,.track-select { width:17px; height:17px; margin:0; accent-color:var(--ink); cursor:pointer; }
 .button.danger { border-color:color-mix(in srgb,#b94040 45%,var(--line)); background:transparent; color:#a62f2f; }
@@ -344,8 +346,9 @@ body > footer { display:flex; width:min(1180px,calc(100% - 40px)); justify-conte
   .section-heading h1,.section-heading h2 { font-size:3rem; }
   .drawing-heading { padding:18px; }
   .drop-zone { border-radius:13px; }
-  .library-title { align-items:flex-start; gap:16px; }
-  .library-actions { flex-wrap:wrap; justify-content:flex-end; }
+  .library-title { display:grid; align-items:flex-start; gap:16px; }
+  .library-actions { width:100%; flex-wrap:wrap; justify-content:flex-start; }
+  .bulk-playlist-select { max-width:none; flex:1 1 145px; }
   .library-actions small { width:100%; text-align:right; }
   .dentistry-controls,.dentistry-study-grid,.dentistry-options { grid-template-columns:1fr; }
   .dentistry-study-card { min-height:0; }

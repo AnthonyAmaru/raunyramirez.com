@@ -125,13 +125,20 @@
     async deleteTrack(track) {
       return this.deleteTracks([track]);
     }
-    async assignTrack(trackId, playlistId) {
+    async assignTracks(trackIds, playlistId) {
       this.requireAdmin();
-      await readResponse(await fetch(`${PROJECT_URL}/rest/v1/music_tracks?id=eq.${encodeURIComponent(trackId)}`, {
-        method: "PATCH",
-        headers: this.headers({ "Content-Type": "application/json", Prefer: "return=minimal" }, true),
-        body: JSON.stringify({ playlist_id: playlistId || null }),
-      }));
+      const uniqueIds = [...new Set(trackIds.map((id) => String(id)).filter(Boolean))];
+      for (let start = 0; start < uniqueIds.length; start += 100) {
+        const ids = uniqueIds.slice(start, start + 100).map(encodeURIComponent).join(",");
+        await readResponse(await fetch(`${PROJECT_URL}/rest/v1/music_tracks?id=in.(${ids})&user_id=eq.${encodeURIComponent(this.user.id)}`, {
+          method: "PATCH",
+          headers: this.headers({ "Content-Type": "application/json", Prefer: "return=minimal" }, true),
+          body: JSON.stringify({ playlist_id: playlistId || null }),
+        }));
+      }
+    }
+    async assignTrack(trackId, playlistId) {
+      return this.assignTracks([trackId], playlistId);
     }
     async deleteTracks(trackList) {
       this.requireAdmin();

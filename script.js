@@ -42,7 +42,7 @@ function normalizePrimaryNavigation() {
   const nav = $("#primary-nav");
   if (!nav) return;
   let currentPage = location.pathname.split("/").pop() || "index.html";
-  if (currentPage === "art.html") currentPage = "interests.html";
+  if (["art.html", "travel.html", "books.html", "shopping.html"].includes(currentPage)) currentPage = "interests.html";
   nav.innerHTML = PRIMARY_NAV_ITEMS.map(([href, label]) => `<a href="${href}"${currentPage === href ? ' aria-current="page"' : ""}>${label}</a>`).join("");
 }
 

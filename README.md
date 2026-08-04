@@ -2,4 +2,6 @@
 
 The source for [raunyramirez.com](https://raunyramirez.com): a responsive website organized into Resume, Interests, Music, and Goals.
 
+Interests opens into Art, Travel, Books, and Shopping.
+
 Supabase Auth, Database, and Storage keep authorized artwork, music, and goals synchronized across devices.

@@ -2,12 +2,32 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="theme-color" content="#fff7f3" /><meta name="description" content="Rauny Ramirez — travel." /><title>Travel · Rauny Ramirez</title>
-    <link rel="icon" href="favicon.ico" sizes="any" /><link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" /><link rel="icon" href="favicon-16.png" type="image/png" sizes="16x16" /><link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180" /><link rel="manifest" href="site.webmanifest" /><link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin /><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" /><link rel="stylesheet" href="styles.css?v=20260803-palette1" /><script src="music-cloud.js?v=20260803-palette1" defer></script><script src="script.js?v=20260804-player1" defer></script>
+    <link rel="icon" href="favicon.ico" sizes="any" /><link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" /><link rel="icon" href="favicon-16.png" type="image/png" sizes="16x16" /><link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180" /><link rel="manifest" href="site.webmanifest" /><link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin /><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <link rel="stylesheet" href="styles.css?v=20260804-travel1" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="music-cloud.js?v=20260803-palette1" defer></script><script src="script.js?v=20260804-player1" defer></script><script src="travel.js?v=20260804-travel1" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to content</a><header class="site-header"><a class="brand" href="index.html" aria-label="Rauny Ramirez home"><img src="logo.png" alt="" /><strong>Rauny Ramirez</strong></a><button id="menu-toggle" class="icon-button menu-toggle" type="button" aria-label="Open menu" aria-expanded="false">☰</button><nav id="primary-nav" aria-label="Primary navigation"><a href="resume.html">Resume</a><a href="interests.html" aria-current="page">Interests</a><a href="music.html">Music</a><a href="goals.html">Goals</a></nav><button id="cloud-status" class="cloud-status" type="button"><span></span>Cloud locked</button><button id="theme-toggle" class="icon-button" type="button" aria-label="Switch color theme">☾</button></header>
     <aside id="music-bar" class="music-bar" aria-label="Music player"><div><span>Now playing</span><strong id="now-playing">Nothing selected</strong></div><audio id="audio-player" preload="metadata"></audio><button id="previous-track" type="button" aria-label="Previous track">‹</button><button id="toggle-track" class="play-button" type="button" aria-label="Play or pause">▶</button><button id="next-track" type="button" aria-label="Next track">›</button></aside>
-    <main id="main-content"><section class="section-shell content-section"><header class="section-heading"><h1>Travel</h1></header></section></main>
+    <main id="main-content">
+      <section class="section-shell content-section travel-section">
+        <header class="section-heading travel-heading"><h1>Travel</h1></header>
+        <div class="travel-destinations" aria-label="Places visited">
+          <button type="button" data-travel-place="hawaii"><span>01</span><strong>Hawaii</strong></button>
+          <button type="button" data-travel-place="europe"><span>02</span><strong>Europe</strong></button>
+          <button type="button" data-travel-place="pittsburgh"><span>03</span><strong>Pittsburgh</strong></button>
+          <button type="button" data-travel-place="las-vegas"><span>04</span><strong>Las Vegas</strong></button>
+          <button type="button" data-travel-place="canada"><span>05</span><strong>Canada</strong></button>
+        </div>
+        <section class="travel-map-card" aria-labelledby="travel-map-title">
+          <header><h2 id="travel-map-title">Map</h2><button id="show-all-travel" type="button">Show all</button></header>
+          <div id="travel-map" role="application" aria-label="Interactive map showing Hawaii, Europe, Pittsburgh, Las Vegas, and Canada"></div>
+          <noscript><p class="map-message">JavaScript is required for the interactive map.</p></noscript>
+        </section>
+      </section>
+    </main>
     <footer><strong>Rauny Ramirez</strong><span>raunyramirez.com</span></footer><div id="toast" class="toast" role="status" aria-live="polite"></div>
   </body>
 </html>

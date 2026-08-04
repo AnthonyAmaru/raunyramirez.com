@@ -286,6 +286,30 @@ body > footer { display:flex; width:min(1180px,calc(100% - 40px)); justify-conte
 .dentistry-pdf-drawer header button { display:grid; width:38px; height:38px; place-items:center; border:1px solid var(--line); border-radius:50%; background:var(--canvas); color:var(--ink); cursor:pointer; font-size:1.25rem; }
 .dentistry-pdf-drawer iframe { width:100%; height:100%; border:0; background:#fff; }
 
+/* Travel */
+.travel-section { padding-top:72px; }
+.travel-heading { display:block; margin-bottom:24px; }
+.travel-destinations { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); overflow:hidden; border:1px solid var(--line); border-radius:14px; background:var(--surface); }
+.travel-destinations button { display:grid; min-width:0; min-height:112px; align-content:space-between; border:0; border-right:1px solid var(--line); background:transparent; color:var(--ink); padding:17px; cursor:pointer; text-align:left; transition:background .18s,color .18s; }
+.travel-destinations button:last-child { border-right:0; }
+.travel-destinations button:hover,.travel-destinations button:focus-visible,.travel-destinations button.active { background:var(--rose); outline:0; }
+.travel-destinations button span { color:var(--terracotta-dark); font-size:.6rem; font-weight:850; }
+.travel-destinations button strong { overflow:hidden; font-size:clamp(.82rem,1.5vw,1.05rem); text-overflow:ellipsis; }
+.travel-map-card { overflow:hidden; margin-top:18px; border:1px solid var(--line); border-radius:14px; background:var(--surface); }
+.travel-map-card > header { display:flex; min-height:62px; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); padding:0 18px; }
+.travel-map-card h2 { margin:0; font-size:1rem; }
+.travel-map-card > header button { border:1px solid var(--line); border-radius:999px; background:var(--canvas); color:var(--ink); padding:7px 12px; cursor:pointer; font-size:.68rem; font-weight:800; }
+#travel-map { width:100%; height:min(62vh,590px); min-height:390px; background:var(--sage); z-index:1; }
+.travel-marker { display:grid; width:26px; height:26px; place-items:center; border:3px solid #fff; border-radius:50%; background:#986fac; color:#fff; box-shadow:0 3px 12px rgba(48,36,58,.35); font-size:.64rem; font-weight:850; }
+.leaflet-popup-content-wrapper,.leaflet-popup-tip { background:var(--surface); color:var(--ink); }
+.leaflet-popup-content-wrapper { border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow); }
+.leaflet-popup-content { margin:12px 14px; font-family:"DM Sans",sans-serif; font-weight:800; }
+.leaflet-control-zoom a { background:var(--surface) !important; color:var(--ink) !important; }
+.leaflet-control-attribution { background:color-mix(in srgb,var(--surface) 86%,transparent) !important; color:var(--muted) !important; }
+.leaflet-control-attribution a { color:var(--terracotta-dark) !important; }
+[data-theme="dark"] .leaflet-tile-pane { filter:brightness(.68) contrast(.9) saturate(.55); }
+.map-message { margin:0; padding:18px; color:var(--muted); font-size:.78rem; }
+
 @media (max-width:600px) {
   .home-launch { min-height:calc(100svh - 134px); padding-block:36px; }
   .launch-grid { grid-template-columns:1fr; }
@@ -302,6 +326,12 @@ body > footer { display:flex; width:min(1180px,calc(100% - 40px)); justify-conte
   .dentistry-history-row { grid-template-columns:1fr; gap:9px; }
   .dentistry-perfect { justify-self:start; }
   .dentistry-pdf-drawer { width:100vw; }
+  .travel-section { padding-top:42px; }
+  .travel-destinations { grid-template-columns:1fr 1fr; }
+  .travel-destinations button { min-height:82px; border-bottom:1px solid var(--line); }
+  .travel-destinations button:nth-child(2n) { border-right:0; }
+  .travel-destinations button:last-child { grid-column:1/-1; border-bottom:0; }
+  #travel-map { height:58vh; min-height:360px; }
 }
 
 /* Resume */

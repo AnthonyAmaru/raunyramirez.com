@@ -209,6 +209,9 @@ body > footer { display:flex; width:min(1180px,calc(100% - 40px)); justify-conte
 .launch-grid a:nth-child(5n+5) { background:color-mix(in srgb,var(--terracotta) 18%,var(--surface)); }
 .launch-grid a:hover { border-color:color-mix(in srgb,var(--ink) 28%,transparent); box-shadow:var(--shadow); transform:translateY(-2px); }
 .launch-grid span { color:var(--muted); font-size:.68rem; font-weight:800; }
+.launch-grid .launch-mark { display:grid; min-width:36px; justify-items:center; gap:3px; }
+.launch-grid .launch-mark i { font-size:1.45rem; font-style:normal; line-height:1; }
+.launch-grid .launch-mark small { font-size:.56rem; }
 .interest-launch .interest-emoji { color:inherit; font-size:1.45rem; font-weight:400; line-height:1; }
 .launch-grid strong { font-size:clamp(1rem,2vw,1.25rem); }
 .launch-grid b { font-size:1.3rem; }
@@ -346,6 +349,7 @@ body > footer { display:flex; width:min(1180px,calc(100% - 40px)); justify-conte
 .school-mark.mdc-mark { background:#fff; }
 .education-card h3 { margin:0 0 5px; font-size:1.15rem; }
 .education-card p,.education-card time { margin:0; color:var(--muted); font-size:.78rem; }
+.education-card .education-role { margin-top:5px; color:var(--terracotta-dark); font-weight:800; }
 .education-card time { font-weight:700; white-space:nowrap; }
 
 /* Shopping catalogs */

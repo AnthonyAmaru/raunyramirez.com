@@ -53,6 +53,29 @@
     }
     return metadata;
   }
+  function comparableMusicName(value) { return String(value || "").toLocaleLowerCase().replace(/\band\b/g, "").replace(/[^a-z0-9]+/g, ""); }
+  function normalizeTrackMetadata(rawTitle, rawArtist) {
+    let title = String(rawTitle || "").replace(/\[[^\]]*\]/g, " ").replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
+    let artist = String(rawArtist || "").replace(/\s+/g, " ").trim();
+    const separated = title.match(/^(.*?)\s+[-–—]\s+(.+)$/);
+    if (separated) {
+      const left = separated[1].trim();
+      const right = separated[2].trim();
+      const artistName = comparableMusicName(artist);
+      const leftName = comparableMusicName(left);
+      const rightName = comparableMusicName(right);
+      if (leftName.length >= 2 && artistName.includes(leftName)) title = right;
+      else if (rightName.length >= 2 && artistName.includes(rightName)) title = left;
+      else { title = right; if (left) artist = left; }
+    }
+    const primaryArtist = artist.split(/\s*(?:&|,|\band\b)\s*/i).find(Boolean)?.trim() || "";
+    if (primaryArtist && title.toLocaleLowerCase().startsWith(primaryArtist.toLocaleLowerCase())) {
+      const next = title.slice(primaryArtist.length, primaryArtist.length + 1);
+      if (/^[\s"“＂:|–—-]$/.test(next)) title = title.slice(primaryArtist.length).trim();
+    }
+    title = title.replace(/^(?:feat\.?|ft\.?)\s+[^"“＂]*(["“＂])/i, "$1").replace(/\s+(?:feat\.?|ft\.?)\s+.*$/i, "").replace(/\s+/g, " ").replace(/^[\s\-–—:|/]+|[\s\-–—:|/]+$/g, "").trim();
+    return { title: title || "Untitled song", artist };
+  }
   async function identifyFile(file) {
     const relativePath = file.webkitRelativePath || "";
     const folder = relativePath.includes("/") ? relativePath.slice(0, relativePath.lastIndexOf("/")) : "";
@@ -60,6 +83,7 @@
     const contentHash = await sha256Hex(fileBuffer);
     const embedded = extractId3Metadata(fileBuffer);
     const folderFingerprint = folder ? await sha256Hex(folder.toLocaleLowerCase()) : null;
+    const normalized = normalizeTrackMetadata(embedded.title || file.name.replace(/\.[^.]+$/, ""), embedded.artist || "");
     const fileFingerprint = await sha256Hex(JSON.stringify({ name: file.name.toLocaleLowerCase(), size: file.size, lastModified: Number(file.lastModified || 0), folder }));
     return {
       contentHash,
@@ -72,10 +96,10 @@
         size_bytes: file.size,
         mime_type: file.type || null,
         folder_fingerprint: folderFingerprint,
-        ...(embedded.artist ? { artist: embedded.artist } : {}),
+        ...(normalized.artist ? { artist: normalized.artist } : {}),
         ...(embedded.title ? { embedded_title: embedded.title } : {}),
       },
-      title: embedded.title || file.name.replace(/\.[^.]+$/, ""),
+      title: normalized.title,
     };
   }
   async function readResponse(response) {
@@ -187,8 +211,9 @@
     }
     async updateTrackMetadata(track, title, artist) {
       this.requireAdmin();
-      const cleanTitle = String(title || "").trim();
-      const cleanArtist = String(artist || "").trim();
+      const normalized = normalizeTrackMetadata(title, artist);
+      const cleanTitle = normalized.title;
+      const cleanArtist = normalized.artist;
       if (!cleanTitle || cleanTitle.length > 200) throw new Error("Song names must be between 1 and 200 characters.");
       if (!cleanArtist || cleanArtist.length > 200) throw new Error("Artist names must be between 1 and 200 characters.");
       const sourceMetadata = track?.source_metadata && typeof track.source_metadata === "object" && !Array.isArray(track.source_metadata)

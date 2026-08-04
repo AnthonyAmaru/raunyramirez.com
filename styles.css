@@ -227,6 +227,29 @@ body > footer { display:flex; width:min(1180px,calc(100% - 40px)); justify-conte
 .goal-card { background:var(--surface); }
 .music-drop { background:var(--surface); }
 
+/* Shared music-library structure */
+.music-workspace { display:grid; grid-template-columns:230px minmax(0,1fr); gap:12px; margin-top:22px; align-items:start; }
+.playlist-panel,.music-workspace .music-library { margin:0; border:1px solid var(--line); border-radius:14px; background:var(--surface); box-shadow:none; }
+.playlist-panel { padding:15px; }
+.playlist-heading { display:flex; min-height:46px; align-items:center; justify-content:space-between; gap:8px; border-bottom:1px solid var(--line); margin-bottom:9px; padding:0 4px 10px; }
+.playlist-heading h2 { margin:0; font-size:1rem; }
+.playlist-heading .button { min-height:34px; padding:0 11px; font-size:.68rem; }
+.playlist-row { display:grid; width:100%; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:9px; border:0; border-radius:10px; background:transparent; color:var(--ink); padding:10px; cursor:pointer; text-align:left; }
+.playlist-row.active { background:var(--rose); }
+.playlist-row strong { overflow:hidden; font-size:.76rem; text-overflow:ellipsis; white-space:nowrap; }
+.playlist-row small { color:var(--muted); font-size:.65rem; }
+.music-workspace .track-row { grid-template-columns:auto auto minmax(0,1fr) minmax(125px,180px) auto; }
+.track-row select { min-height:36px; min-width:0; border:1px solid var(--line); border-radius:9px; background:var(--canvas); color:var(--ink); padding:0 8px; font-size:.7rem; }
+
+@media (max-width:760px) {
+  .music-workspace { grid-template-columns:1fr; }
+  .playlist-panel { display:grid; grid-template-columns:1fr; }
+  #playlist-list { display:flex; gap:6px; overflow-x:auto; }
+  .playlist-panel > .playlist-row,#playlist-list .playlist-row { width:auto; min-width:max-content; }
+  .music-workspace .track-row { grid-template-columns:auto auto minmax(0,1fr) auto; }
+  .music-workspace .track-row select { grid-column:3 / -1; }
+}
+
 /* Dentistry study */
 .pdf-drawer-open { overflow:hidden; }
 .dentistry-study { max-width:980px; }

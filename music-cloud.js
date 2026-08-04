@@ -69,10 +69,24 @@
     requireAdmin() { if (!this.isSignedIn()) throw new Error("Administrator sign-in is required."); }
     publicUrl(path) { return `${PROJECT_URL}/storage/v1/object/public/${BUCKET}/${encodeStoragePath(path)}`; }
     async list(site) {
-      const tracks = await readResponse(await fetch(`${PROJECT_URL}/rest/v1/music_tracks?select=id,title,file_name,storage_path,mime_type,size_bytes,content_hash,file_fingerprint,source_metadata,created_at&site=eq.${encodeURIComponent(site)}&order=created_at.desc`, { headers: this.headers() }));
-      return (tracks || []).map((track) => ({ ...track, url: this.publicUrl(track.storage_path) }));
+      const playlistUrl = `${PROJECT_URL}/rest/v1/music_playlists?select=id,name,created_at&site=eq.${encodeURIComponent(site)}&order=created_at.asc`;
+      const trackUrl = `${PROJECT_URL}/rest/v1/music_tracks?select=id,playlist_id,title,file_name,storage_path,mime_type,size_bytes,content_hash,file_fingerprint,source_metadata,created_at&site=eq.${encodeURIComponent(site)}&order=created_at.desc`;
+      const [playlists, tracks] = await Promise.all([
+        fetch(playlistUrl, { headers: this.headers() }).then(readResponse),
+        fetch(trackUrl, { headers: this.headers() }).then(readResponse),
+      ]);
+      return { playlists: playlists || [], tracks: (tracks || []).map((track) => ({ ...track, url: this.publicUrl(track.storage_path) })) };
     }
-    async upload(site, file) {
+    async createPlaylist(site, name) {
+      this.requireAdmin();
+      const rows = await readResponse(await fetch(`${PROJECT_URL}/rest/v1/music_playlists`, {
+        method: "POST",
+        headers: this.headers({ "Content-Type": "application/json", Prefer: "return=representation" }, true),
+        body: JSON.stringify({ site, name }),
+      }));
+      return rows?.[0];
+    }
+    async upload(site, file, playlistId = null) {
       this.requireAdmin();
       if (file.size > 50 * 1024 * 1024) throw new Error(`${file.name} is larger than the 50 MB file limit.`);
       const identity = await identifyFile(file);
@@ -82,7 +96,7 @@
       const storagePath = `${site}/${this.user.id}/${crypto.randomUUID()}.${extension}`;
       await readResponse(await fetch(`${PROJECT_URL}/storage/v1/object/${BUCKET}/${encodeStoragePath(storagePath)}`, { method: "POST", headers: this.headers({ "Content-Type": file.type || "application/octet-stream", "x-upsert": "false" }, true), body: file }));
       try {
-        const rows = await readResponse(await fetch(`${PROJECT_URL}/rest/v1/music_tracks`, { method: "POST", headers: this.headers({ "Content-Type": "application/json", Prefer: "return=representation" }, true), body: JSON.stringify({ site, title: file.name.replace(/\.[^.]+$/, ""), file_name: file.name, storage_path: storagePath, mime_type: file.type || null, size_bytes: file.size, content_hash: identity.contentHash, file_fingerprint: identity.fileFingerprint, source_metadata: identity.sourceMetadata }) }));
+        const rows = await readResponse(await fetch(`${PROJECT_URL}/rest/v1/music_tracks`, { method: "POST", headers: this.headers({ "Content-Type": "application/json", Prefer: "return=representation" }, true), body: JSON.stringify({ site, playlist_id: playlistId || null, title: file.name.replace(/\.[^.]+$/, ""), file_name: file.name, storage_path: storagePath, mime_type: file.type || null, size_bytes: file.size, content_hash: identity.contentHash, file_fingerprint: identity.fileFingerprint, source_metadata: identity.sourceMetadata }) }));
         return rows?.[0];
       } catch (error) {
         await fetch(`${PROJECT_URL}/storage/v1/object/${BUCKET}`, { method: "DELETE", headers: this.headers({ "Content-Type": "application/json" }, true), body: JSON.stringify({ prefixes: [storagePath] }) }).catch(() => {});
@@ -110,6 +124,14 @@
     }
     async deleteTrack(track) {
       return this.deleteTracks([track]);
+    }
+    async assignTrack(trackId, playlistId) {
+      this.requireAdmin();
+      await readResponse(await fetch(`${PROJECT_URL}/rest/v1/music_tracks?id=eq.${encodeURIComponent(trackId)}`, {
+        method: "PATCH",
+        headers: this.headers({ "Content-Type": "application/json", Prefer: "return=minimal" }, true),
+        body: JSON.stringify({ playlist_id: playlistId || null }),
+      }));
     }
     async deleteTracks(trackList) {
       this.requireAdmin();

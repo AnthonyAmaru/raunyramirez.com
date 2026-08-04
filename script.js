@@ -25,6 +25,9 @@ const SHOPPING_CATEGORIES = [
 ];
 let toastTimer;
 let tracks = [];
+let playlists = [];
+let visibleTracks = [];
+let currentPlaylist = "all";
 let currentTrackId = null;
 let playerStateRestored = false;
 const selectedTrackIds = new Set();
@@ -741,11 +744,29 @@ async function addMusicFiles(files) {
 
 async function renderMusic() {
   let errorMessage = "";
-  try { tracks = await musicCloud.list("rauny"); } catch (error) { tracks = []; errorMessage = error.message; }
+  try {
+    const library = await musicCloud.list("rauny");
+    tracks = library.tracks;
+    playlists = library.playlists;
+  } catch (error) {
+    tracks = [];
+    playlists = [];
+    errorMessage = error.message;
+  }
+  const selectedPlaylist = playlists.find((playlist) => String(playlist.id) === currentPlaylist);
+  visibleTracks = currentPlaylist === "all" ? tracks : tracks.filter((track) => track.playlist_id === selectedPlaylist?.id);
   const availableIds = new Set(tracks.map((track) => String(track.id)));
   [...selectedTrackIds].forEach((id) => { if (!availableIds.has(id)) selectedTrackIds.delete(id); });
   if ($("#track-count")) $("#track-count").textContent = `${tracks.length} ${tracks.length === 1 ? "song" : "songs"}`;
-  if ($("#track-list")) $("#track-list").innerHTML = errorMessage ? `<div class="empty-state">Cloud library unavailable: ${escapeHtml(errorMessage)}</div>` : tracks.length ? tracks.map((track) => `<article class="track-row"><input class="track-select" type="checkbox" data-select-track="${track.id}" aria-label="Select ${escapeHtml(track.title)}" ${selectedTrackIds.has(String(track.id)) ? "checked" : ""} /><button class="track-play" data-play-track="${track.id}" aria-label="Play ${escapeHtml(track.title)}">▶</button><div><strong>${escapeHtml(track.title)}</strong><small>${formatBytes(track.size_bytes)}</small></div><button class="delete-button" data-delete-track="${track.id}" aria-label="Delete ${escapeHtml(track.title)}">×</button></article>`).join("") : '<div class="empty-state">No music yet</div>';
+  if ($("#all-track-count")) $("#all-track-count").textContent = tracks.length;
+  if ($("#library-title")) $("#library-title").textContent = currentPlaylist === "all" ? "All music" : selectedPlaylist?.name || "Playlist";
+  if ($("#playlist-list")) $("#playlist-list").innerHTML = playlists.map((playlist) => `<button class="playlist-row ${currentPlaylist === String(playlist.id) ? "active" : ""}" type="button" data-playlist="${playlist.id}"><span>♬</span><strong>${escapeHtml(playlist.name)}</strong><small>${tracks.filter((track) => track.playlist_id === playlist.id).length}</small></button>`).join("");
+  $$(".playlist-row[data-playlist='all']").forEach((button) => button.classList.toggle("active", currentPlaylist === "all"));
+  const playlistOptions = playlists.map((playlist) => `<option value="${playlist.id}">${escapeHtml(playlist.name)}</option>`).join("");
+  if ($("#track-list")) {
+    $("#track-list").innerHTML = errorMessage ? `<div class="empty-state">Cloud library unavailable: ${escapeHtml(errorMessage)}</div>` : visibleTracks.length ? visibleTracks.map((track) => `<article class="track-row"><input class="track-select" type="checkbox" data-select-track="${track.id}" aria-label="Select ${escapeHtml(track.title)}" ${selectedTrackIds.has(String(track.id)) ? "checked" : ""} /><button class="track-play" data-play-track="${track.id}" aria-label="Play ${escapeHtml(track.title)}">▶</button><div><strong>${escapeHtml(track.title)}</strong><small>${formatBytes(track.size_bytes)}</small></div><select data-assign-track="${track.id}" aria-label="Move ${escapeHtml(track.title)} to playlist"><option value="">No playlist</option>${playlistOptions}</select><button class="delete-button" data-delete-track="${track.id}" aria-label="Delete ${escapeHtml(track.title)}">×</button></article>`).join("") : '<div class="empty-state">No music here yet</div>';
+    $$('[data-assign-track]').forEach((select) => { const track = tracks.find((item) => String(item.id) === String(select.dataset.assignTrack)); select.value = track?.playlist_id || ""; });
+  }
   updateTrackSelectionControls();
   restoreMusicPlayerState();
 }
@@ -782,7 +803,7 @@ function updateTrackSelectionControls() {
   const selectAll = $("#select-all-tracks");
   const deleteButton = $("#delete-selected-tracks");
   if (!selectAll || !deleteButton) return;
-  const ids = tracks.map((track) => String(track.id));
+  const ids = visibleTracks.map((track) => String(track.id));
   const selectedCount = ids.filter((id) => selectedTrackIds.has(id)).length;
   selectAll.disabled = ids.length === 0;
   selectAll.checked = ids.length > 0 && selectedCount === ids.length;
@@ -819,6 +840,28 @@ async function playTrack(id) {
   saveMusicPlayerState();
 }
 
+async function createPlaylist() {
+  if (!(await ensureCloudAdmin())) return;
+  const name = prompt("Name this playlist:");
+  if (!name?.trim()) return;
+  try {
+    const playlist = await musicCloud.createPlaylist("rauny", name.trim());
+    currentPlaylist = String(playlist.id);
+    await renderMusic();
+    toast("Playlist created.");
+  } catch (error) { toast(error.message); }
+}
+
+async function assignTrack(trackId, playlistId) {
+  if (!(await ensureCloudAdmin())) return renderMusic();
+  try {
+    await musicCloud.assignTrack(trackId, playlistId || null);
+    selectedTrackIds.delete(String(trackId));
+    await renderMusic();
+    toast(playlistId ? "Song moved to the selected playlist." : "Song removed from playlists.");
+  } catch (error) { toast(error.message); renderMusic(); }
+}
+
 async function ensureCloudAdmin() {
   if (musicCloud.isSignedIn()) return true;
   cloudAdminPassword ||= prompt("Enter the admin password for Rauny’s private cloud workspace:") || null;
@@ -835,9 +878,10 @@ async function ensureCloudAdmin() {
 }
 
 function stepTrack(direction) {
-  if (!tracks.length) return;
-  const index = Math.max(0, tracks.findIndex((track) => track.id === currentTrackId));
-  playTrack(tracks[(index + direction + tracks.length) % tracks.length].id);
+  const pool = visibleTracks.length ? visibleTracks : tracks;
+  if (!pool.length) return;
+  const index = Math.max(0, pool.findIndex((track) => track.id === currentTrackId));
+  playTrack(pool[(index + direction + pool.length) % pool.length].id);
 }
 
 function bindDropZone(zoneSelector, inputSelector, chooseSelector, handler) {
@@ -884,15 +928,26 @@ $("#track-list")?.addEventListener("click", async (event) => {
 });
 $("#track-list")?.addEventListener("change", (event) => {
   const checkbox = event.target.closest("[data-select-track]");
-  if (!checkbox) return;
-  if (checkbox.checked) selectedTrackIds.add(String(checkbox.dataset.selectTrack));
-  else selectedTrackIds.delete(String(checkbox.dataset.selectTrack));
-  updateTrackSelectionControls();
+  const playlistSelect = event.target.closest("[data-assign-track]");
+  if (checkbox) {
+    if (checkbox.checked) selectedTrackIds.add(String(checkbox.dataset.selectTrack));
+    else selectedTrackIds.delete(String(checkbox.dataset.selectTrack));
+    updateTrackSelectionControls();
+  }
+  if (playlistSelect) assignTrack(playlistSelect.dataset.assignTrack, playlistSelect.value);
 });
 $("#select-all-tracks")?.addEventListener("change", (event) => {
-  tracks.forEach((track) => event.target.checked ? selectedTrackIds.add(String(track.id)) : selectedTrackIds.delete(String(track.id)));
+  visibleTracks.forEach((track) => event.target.checked ? selectedTrackIds.add(String(track.id)) : selectedTrackIds.delete(String(track.id)));
   $$('[data-select-track]').forEach((checkbox) => { checkbox.checked = event.target.checked; });
   updateTrackSelectionControls();
+});
+$("#new-playlist")?.addEventListener("click", createPlaylist);
+$(".music-workspace")?.addEventListener("click", (event) => {
+  const playlist = event.target.closest("[data-playlist]");
+  if (!playlist) return;
+  selectedTrackIds.clear();
+  currentPlaylist = playlist.dataset.playlist;
+  renderMusic();
 });
 $("#delete-selected-tracks")?.addEventListener("click", deleteSelectedTracks);
 $("#quick-ai-toggle").addEventListener("click", () => toggleQuickAi());

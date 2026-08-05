@@ -245,27 +245,40 @@ body > footer { display:flex; width:min(1180px,calc(100% - 40px)); justify-conte
 .music-drop { background:var(--surface); }
 
 /* Shared music-library structure */
-.music-workspace { display:grid; min-width:0; grid-template-columns:230px minmax(0,1fr); gap:12px; margin-top:22px; align-items:start; }
+.music-workspace { min-width:0; margin-top:22px; }
 .music-workspace > * { min-width:0; }
-.playlist-panel,.music-workspace .music-library { margin:0; border:1px solid var(--line); border-radius:14px; background:var(--surface); box-shadow:none; }
-.playlist-panel { padding:15px; }
-.playlist-heading { display:flex; min-height:46px; align-items:center; justify-content:space-between; gap:8px; border-bottom:1px solid var(--line); margin-bottom:9px; padding:0 4px 10px; }
-.playlist-heading h2 { margin:0; font-size:1rem; }
-.playlist-heading .button { min-height:34px; padding:0 11px; font-size:.68rem; }
-.playlist-row { display:grid; width:100%; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:9px; border:0; border-radius:10px; background:transparent; color:var(--ink); padding:10px; cursor:pointer; text-align:left; }
-.playlist-row.active { background:var(--rose); }
-.playlist-row strong { overflow:hidden; font-size:.76rem; text-overflow:ellipsis; white-space:nowrap; }
-.playlist-row small { color:var(--muted); font-size:.65rem; }
+.playlist-browser,.music-workspace .music-library { margin:0; border:1px solid var(--line); border-radius:14px; background:var(--surface); padding:25px; box-shadow:none; }
+.playlist-browser-heading { display:flex; min-height:46px; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; }
+.playlist-browser-heading h2 { margin:0; font-size:2rem; }
+.playlist-browser-heading .button { min-height:38px; padding:0 13px; font-size:.68rem; }
+.playlist-tile-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; }
+.playlist-tile-list { display:contents; }
+.playlist-tile { display:grid; min-height:210px; align-content:space-between; justify-items:start; overflow:hidden; border:1px solid var(--line); border-radius:14px; background:color-mix(in srgb,var(--surface) 60%,var(--rose)); color:var(--ink); padding:22px; cursor:pointer; text-align:left; transition:border-color .18s,box-shadow .18s,transform .18s; }
+.playlist-tile:nth-child(3n+2) { background:color-mix(in srgb,var(--surface) 60%,var(--peach)); }
+.playlist-tile:nth-child(3n) { background:color-mix(in srgb,var(--surface) 60%,var(--sun)); }
+.playlist-tile:hover,.playlist-tile:focus-visible { border-color:var(--terracotta); box-shadow:var(--shadow); outline:0; transform:translateY(-2px); }
+.playlist-tile.active { border-color:var(--ink); }
+.playlist-tile > span { font-size:2rem; }
+.playlist-tile strong { width:100%; overflow:hidden; font-size:1.15rem; text-overflow:ellipsis; white-space:nowrap; }
+.playlist-tile small { color:var(--muted); }
+.playlist-tile small b { color:var(--ink); font-size:1rem; }
+.all-songs-tile { background:color-mix(in srgb,var(--surface) 58%,var(--blue)); }
+.library-title-group { display:grid; gap:8px; }
+.collection-back-button { width:max-content; min-height:36px; border:1px solid var(--line); border-radius:10px; background:transparent; color:var(--muted); padding:0 11px; cursor:pointer; font:inherit; font-size:.72rem; font-weight:800; }
+.collection-back-button:hover,.collection-back-button:focus-visible { border-color:var(--terracotta); color:var(--ink); outline:0; }
 .music-workspace .track-row { grid-template-columns:auto auto minmax(0,1fr) minmax(125px,180px) auto; }
 .track-row select { min-height:36px; min-width:0; border:1px solid var(--line); border-radius:9px; background:var(--canvas); color:var(--ink); padding:0 8px; font-size:.7rem; }
 
 @media (max-width:760px) {
-  .music-workspace { grid-template-columns:1fr; }
-  .playlist-panel { display:grid; grid-template-columns:1fr; }
-  #playlist-list { display:flex; gap:6px; overflow-x:auto; }
-  .playlist-panel > .playlist-row,#playlist-list .playlist-row { width:auto; min-width:max-content; }
+  .playlist-tile-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .music-workspace .track-row { grid-template-columns:auto auto minmax(0,1fr) auto; }
   .music-workspace .track-row select { grid-column:3 / -1; }
+}
+
+@media (max-width:480px) {
+  .playlist-browser,.music-workspace .music-library { padding:18px; }
+  .playlist-tile-grid { grid-template-columns:1fr; }
+  .playlist-tile { min-height:165px; }
 }
 
 /* Dentistry study */

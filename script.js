@@ -29,6 +29,7 @@ let tracks = [];
 let playlists = [];
 let visibleTracks = [];
 let currentPlaylist = "all";
+let musicLibraryOpen = false;
 const currentArtists = new Set();
 let currentSongQuery = "";
 let musicSortColumn = "song";
@@ -808,7 +809,10 @@ async function renderMusic() {
   const playlistOptions = playlists.map((playlist) => `<option value="${playlist.id}">${escapeHtml(playlist.name)}</option>`).join("");
   $("#playlist-filter").innerHTML = `<option value="all">All playlists</option><option value="none">No playlist</option>${playlistOptions}`;
   if ($("#all-track-count")) $("#all-track-count").textContent = tracks.length;
-  if ($("#playlist-list")) $("#playlist-list").innerHTML = playlists.map((playlist) => `<button class="playlist-row ${currentPlaylist === String(playlist.id) ? "active" : ""}" type="button" data-playlist="${playlist.id}"><span>♬</span><strong>${escapeHtml(playlist.name)}</strong><small>${tracks.filter((track) => track.playlist_id === playlist.id).length}</small></button>`).join("");
+  if ($("#playlist-list")) $("#playlist-list").innerHTML = playlists.map((playlist) => {
+    const count = tracks.filter((track) => String(track.playlist_id) === String(playlist.id)).length;
+    return `<button class="playlist-tile ${currentPlaylist === String(playlist.id) ? "active" : ""}" type="button" data-playlist="${playlist.id}"><span aria-hidden="true">♬</span><strong>${escapeHtml(playlist.name)}</strong><small><b>${count}</b> ${count === 1 ? "song" : "songs"}</small></button>`;
+  }).join("");
   if ($("#bulk-playlist-select")) {
     $("#bulk-playlist-select").innerHTML = `<option value="">Playlist</option>${playlistOptions}`;
     if (playlists.some((playlist) => String(playlist.id) === previousBulkPlaylist)) $("#bulk-playlist-select").value = previousBulkPlaylist;
@@ -837,8 +841,8 @@ function renderMusicRows() {
   syncArtistFilterUi();
   $("#playlist-filter").value = currentPlaylist;
   $("#track-count").textContent = `${visibleTracks.length} ${visibleTracks.length === 1 ? "song" : "songs"}`;
-  $("#library-title").textContent = currentPlaylist === "all" ? "All music" : currentPlaylist === "none" ? "No playlist" : selectedPlaylist?.name || "Playlist";
-  $$(".playlist-row[data-playlist]").forEach((button) => button.classList.toggle("active", button.dataset.playlist === currentPlaylist));
+  $("#library-title").textContent = currentPlaylist === "all" ? "All songs" : currentPlaylist === "none" ? "No playlist" : selectedPlaylist?.name || "Playlist";
+  $$(".playlist-tile[data-playlist]").forEach((button) => button.classList.toggle("active", button.dataset.playlist === currentPlaylist));
   const playlistOptions = playlists.map((playlist) => `<option value="${playlist.id}">${escapeHtml(playlist.name)}</option>`).join("");
   $("#track-list").innerHTML = musicCloudError ? `<div class="empty-state">Cloud library unavailable: ${escapeHtml(musicCloudError)}</div>` : visibleTracks.length ? visibleTracks.map((track) => {
     const editing = editingTrackId === String(track.id);
@@ -850,6 +854,23 @@ function renderMusicRows() {
   $$('[data-assign-track]').forEach((select) => { const track = tracks.find((item) => String(item.id) === String(select.dataset.assignTrack)); select.value = track?.playlist_id || ""; });
   updateMusicSortControls();
   updateTrackSelectionControls();
+  syncMusicCollectionView();
+}
+
+function syncMusicCollectionView() {
+  const browser = $("#playlist-browser");
+  const library = $("#music-library-view");
+  if (!browser || !library) return;
+  browser.hidden = musicLibraryOpen;
+  library.hidden = !musicLibraryOpen;
+}
+
+function closeMusicLibrary() {
+  musicLibraryOpen = false;
+  selectedTrackIds.clear();
+  editingTrackId = null;
+  syncMusicCollectionView();
+  $("#playlist-browser")?.scrollIntoView({ block: "start", behavior: "auto" });
 }
 
 function syncArtistFilterUi() {
@@ -946,6 +967,7 @@ async function createPlaylist() {
   try {
     const playlist = await musicCloud.createPlaylist("rauny", name.trim());
     currentPlaylist = String(playlist.id);
+    musicLibraryOpen = true;
     await renderMusic();
     toast("Playlist created.");
   } catch (error) { toast(error.message); }
@@ -1101,6 +1123,7 @@ $("#select-all-tracks")?.addEventListener("change", (event) => {
   updateTrackSelectionControls();
 });
 $("#new-playlist")?.addEventListener("click", createPlaylist);
+$("#close-music-library")?.addEventListener("click", closeMusicLibrary);
 $("#assign-selected-tracks")?.addEventListener("click", assignSelectedTracks);
 $("#bulk-playlist-select")?.addEventListener("change", updateTrackSelectionControls);
 $("#song-filter")?.addEventListener("input", (event) => { selectedTrackIds.clear(); currentSongQuery = event.target.value; renderMusicRows(); });
@@ -1125,7 +1148,10 @@ $(".music-workspace")?.addEventListener("click", (event) => {
   selectedTrackIds.clear();
   currentPlaylist = playlist.dataset.playlist;
   currentArtists.clear();
-  renderMusic();
+  currentSongQuery = "";
+  if ($("#song-filter")) $("#song-filter").value = "";
+  musicLibraryOpen = true;
+  renderMusicRows();
 });
 $("#delete-selected-tracks")?.addEventListener("click", deleteSelectedTracks);
 $("#quick-ai-toggle").addEventListener("click", () => toggleQuickAi());
@@ -1146,6 +1172,7 @@ document.addEventListener("click", (event) => {
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   if (!$("#quick-ai-popover").hidden) toggleQuickAi(false);
+  else if (musicLibraryOpen) closeMusicLibrary();
   if ($("#dentistry-pdf-drawer") && !$("#dentistry-pdf-drawer").hidden) closeDentistryPdf();
 });
 $("#toggle-track").addEventListener("click", () => { const player = $("#audio-player"); if (!player.src && tracks.length) return playTrack(tracks[0].id); if (player.paused) player.play(); else player.pause(); });

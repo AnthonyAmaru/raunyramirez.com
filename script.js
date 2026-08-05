@@ -11,8 +11,6 @@ const PRIMARY_NAV_ITEMS = [
   ["goals.html", "Goals"],
 ];
 const INTEREST_DETAIL_PAGES = ["art.html", "dentistry.html", "travel.html", "books.html", "shopping.html"];
-const IS_EMBEDDED = window.self !== window.top || new URLSearchParams(location.search).get("embedded") === "1";
-document.documentElement.dataset.embedded = String(IS_EMBEDDED);
 const SHOPPING_STORES = [
   { slug: "prettylittlething", name: "PrettyLittleThing", mark: "PLT", url: "https://www.prettylittlething.us/" },
   { slug: "nasty-gal", name: "Nasty Gal", mark: "NASTY GAL", url: "https://www.nastygal.com/" },
@@ -99,59 +97,6 @@ function normalizePrimaryNavigation() {
   let currentPage = location.pathname.split("/").pop() || "index.html";
   if (INTEREST_DETAIL_PAGES.includes(currentPage)) currentPage = "interests.html";
   nav.innerHTML = PRIMARY_NAV_ITEMS.map(([href, label]) => `<a href="${href}"${currentPage === href ? ' aria-current="page"' : ""}>${label}</a>`).join("");
-}
-
-function installGoBackButton() {
-  const currentPage = location.pathname.split("/").pop() || "index.html";
-  if (IS_EMBEDDED || currentPage === "index.html" || document.querySelector(".go-back-button")) return;
-  const button = document.createElement("button");
-  button.className = "go-back-button";
-  button.type = "button";
-  button.setAttribute("aria-label", "Go back to the previous page");
-  button.textContent = "GO BACK";
-  button.addEventListener("click", () => {
-    if (!$("#app-modal")?.hidden) return closeInterestApp();
-    let sameSiteReferrer = false;
-    try { sameSiteReferrer = new URL(document.referrer).origin === location.origin; } catch { /* Use the site fallback. */ }
-    if (sameSiteReferrer && history.length > 1) return history.back();
-    location.href = INTEREST_DETAIL_PAGES.includes(currentPage) ? "interests.html" : "index.html";
-  });
-  document.body.append(button);
-}
-
-function installInterestApps() {
-  const modal = $("#app-modal");
-  const frame = $("#app-frame");
-  if (!modal || !frame) return;
-  frame.addEventListener("load", () => {
-    if (!frame.contentDocument || frame.src === "about:blank") return;
-    frame.contentDocument.documentElement.dataset.embedded = "true";
-    if (!frame.contentDocument.querySelector("#embedded-shell-style")) {
-      const style = frame.contentDocument.createElement("style");
-      style.id = "embedded-shell-style";
-      style.textContent = `.site-header,.music-bar,body>footer,.go-back-button,.skip-link{display:none!important}.content-section{padding-top:42px!important}`;
-      frame.contentDocument.head.append(style);
-    }
-  });
-  $$("[data-interest-app]").forEach((link) => link.addEventListener("click", (event) => {
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    event.preventDefault();
-    const url = new URL(link.href, location.href);
-    url.searchParams.set("embedded", "1");
-    frame.src = url.href;
-    frame.title = `${link.textContent.trim()} · Rauny Ramirez`;
-    modal.hidden = false;
-    document.body.classList.add("app-open");
-  }));
-}
-
-function closeInterestApp() {
-  const modal = $("#app-modal");
-  const frame = $("#app-frame");
-  if (!modal || !frame) return;
-  frame.src = "about:blank";
-  modal.hidden = true;
-  document.body.classList.remove("app-open");
 }
 
 function updateCloudStatus() {
@@ -1097,8 +1042,6 @@ function bindDropZone(zoneSelector, inputSelector, chooseSelector, handler) {
 installQuickAi();
 installMusicLayoutParity();
 normalizePrimaryNavigation();
-installGoBackButton();
-installInterestApps();
 $("#menu-toggle").addEventListener("click", () => { const nav = $("#primary-nav"); nav.classList.toggle("open"); $("#menu-toggle").setAttribute("aria-expanded", String(nav.classList.contains("open"))); });
 $$('#primary-nav a').forEach((link) => link.addEventListener("click", () => $("#primary-nav").classList.remove("open")));
 $("#theme-toggle").addEventListener("click", () => applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
@@ -1203,7 +1146,6 @@ document.addEventListener("click", (event) => {
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   if (!$("#quick-ai-popover").hidden) toggleQuickAi(false);
-  if (!$("#app-modal")?.hidden) closeInterestApp();
   if ($("#dentistry-pdf-drawer") && !$("#dentistry-pdf-drawer").hidden) closeDentistryPdf();
 });
 $("#toggle-track").addEventListener("click", () => { const player = $("#audio-player"); if (!player.src && tracks.length) return playTrack(tracks[0].id); if (player.paused) player.play(); else player.pause(); });

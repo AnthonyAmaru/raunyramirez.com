@@ -59,6 +59,7 @@ let activeDentistryTestMode = "quiz";
 function ensureMusicPlayerMenu() {
   const bar = $("#music-bar");
   if (!bar || $("#music-queue-toggle")) return;
+  const copy = $(":scope > div", bar);
   const toggle = document.createElement("button");
   const shuffleToggle = document.createElement("button");
   toggle.id = "music-queue-toggle";
@@ -73,13 +74,16 @@ function ensureMusicPlayerMenu() {
   shuffleToggle.type = "button";
   shuffleToggle.setAttribute("aria-label", "Shuffle songs");
   shuffleToggle.setAttribute("aria-pressed", "false");
-  shuffleToggle.textContent = "⇄";
+  shuffleToggle.textContent = "Shuffle";
   const menu = document.createElement("div");
   menu.id = "music-queue-menu";
   menu.className = "music-player-menu";
   menu.hidden = true;
   menu.innerHTML = '<label for="player-playlist-select">Play a playlist</label><select id="player-playlist-select"><option value="all">All songs</option></select><label for="player-track-select">Choose a song</label><select id="player-track-select"><option value="">No music added yet</option></select>';
-  bar.append(toggle, shuffleToggle, menu);
+  copy?.classList.add("music-bar-copy");
+  bar.insertBefore(toggle, copy || bar.firstChild);
+  bar.insertBefore(shuffleToggle, $("#previous-track"));
+  bar.append(menu);
 }
 
 ensureMusicPlayerMenu();

@@ -88,6 +88,65 @@ function ensureMusicPlayerMenu() {
 
 ensureMusicPlayerMenu();
 
+function formatPlaybackTime(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0));
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+}
+
+function musicTimelineMarkup(label) {
+  return `<div class="music-timeline"><span data-music-current-time>0:00</span><input data-music-progress type="range" min="0" max="0" value="0" step="0.1" aria-label="${label}" disabled /><span data-music-duration>0:00</span></div>`;
+}
+
+function installMusicProgressControls() {
+  const barCopy = $(".music-bar-copy");
+  if (barCopy && !$("[data-music-progress]", barCopy)) barCopy.insertAdjacentHTML("beforeend", musicTimelineMarkup("Song position in music bar"));
+  const libraryHeading = $("#music-library-view .library-title");
+  if (libraryHeading && !$("[data-music-page-player]")) {
+    libraryHeading.insertAdjacentHTML("afterend", `<div class="library-player" data-music-page-player><button type="button" data-music-page-play aria-label="Play" disabled>▶</button><div class="library-player-copy"><small>Now playing</small><strong data-music-page-title>Nothing selected</strong>${musicTimelineMarkup("Song position on Music page")}</div></div>`);
+  }
+  $$('[data-music-progress]').forEach((range) => {
+    range.addEventListener("input", () => {
+      const player = $("#audio-player");
+      if (!Number.isFinite(player.duration) || player.duration <= 0) return;
+      player.currentTime = Math.min(player.duration, Math.max(0, Number(range.value)));
+      syncMusicProgress();
+    });
+    range.addEventListener("change", saveMusicPlayerState);
+  });
+  $("[data-music-page-play]")?.addEventListener("click", () => {
+    const player = $("#audio-player");
+    if (!player.src && playerQueue().length) return playTrack(playerQueue()[0].id);
+    if (player.paused) player.play().catch(() => {}); else player.pause();
+  });
+  syncMusicProgress();
+}
+
+function syncMusicProgress() {
+  const player = $("#audio-player");
+  if (!player) return;
+  const hasTrack = currentTrackId !== null && currentTrackId !== undefined && Boolean(player.src);
+  const duration = hasTrack && Number.isFinite(player.duration) && player.duration > 0 ? player.duration : 0;
+  const current = duration ? Math.min(duration, Math.max(0, player.currentTime || 0)) : 0;
+  $$('[data-music-progress]').forEach((range) => {
+    range.max = String(duration || 0);
+    range.value = String(current);
+    range.disabled = !duration;
+    range.style.setProperty("--music-progress", `${duration ? (current / duration) * 100 : 0}%`);
+  });
+  $$('[data-music-current-time]').forEach((node) => { node.textContent = formatPlaybackTime(current); });
+  $$('[data-music-duration]').forEach((node) => { node.textContent = formatPlaybackTime(duration); });
+  const track = tracks.find((item) => String(item.id) === String(currentTrackId));
+  const pageTitle = $("[data-music-page-title]");
+  if (pageTitle) pageTitle.textContent = track?.title || "Nothing selected";
+  const pagePlay = $("[data-music-page-play]");
+  if (pagePlay) {
+    pagePlay.disabled = !track;
+    pagePlay.textContent = track && !player.paused ? "❚❚" : "▶";
+  }
+}
+
+installMusicProgressControls();
+
 function read(key) {
   try { return JSON.parse(localStorage.getItem(key)) || []; } catch { return []; }
 }
@@ -1068,13 +1127,20 @@ async function deleteSelectedTracks() {
 function updatePlayerPresentation() {
   const player = $("#audio-player");
   $("#toggle-track").textContent = player.paused ? "▶" : "❚❚";
+  $("#toggle-track").setAttribute("aria-label", player.paused ? "Play" : "Pause");
+  $("[data-music-page-play]")?.setAttribute("aria-label", player.paused ? "Play" : "Pause");
   if ("mediaSession" in navigator) navigator.mediaSession.playbackState = currentTrackId ? (player.paused ? "paused" : "playing") : "none";
   $$('[data-track-row]').forEach((row) => {
     const playing = String(row.dataset.trackRow) === String(currentTrackId);
     row.classList.toggle("playing", playing);
     const button = $("[data-play-track]", row);
-    if (button) button.textContent = playing && !player.paused ? "❚❚" : "▶";
+    if (button) {
+      const title = tracks.find((track) => String(track.id) === String(row.dataset.trackRow))?.title || "song";
+      button.textContent = playing && !player.paused ? "❚❚" : "▶";
+      button.setAttribute("aria-label", playing && !player.paused ? `Pause ${title}` : `Play ${title}`);
+    }
   });
+  syncMusicProgress();
 }
 
 function updateMediaSession(track) {
@@ -1089,6 +1155,7 @@ function updateMediaSession(track) {
 
 function updateMediaPosition() {
   const player = $("#audio-player");
+  syncMusicProgress();
   if (!("mediaSession" in navigator) || typeof navigator.mediaSession.setPositionState !== "function" || !Number.isFinite(player.duration) || player.duration <= 0) return;
   try { navigator.mediaSession.setPositionState({ duration: player.duration, playbackRate: player.playbackRate, position: Math.min(player.currentTime, player.duration) }); } catch {}
 }
@@ -1114,13 +1181,26 @@ async function playTrack(id, options = {}) {
     playerPlaylist = "all";
     if (shuffleEnabled) refreshShuffledQueue();
   }
-  currentTrackId = track.id;
   const player = $("#audio-player");
-  player.src = track.url;
+  const sameTrack = String(currentTrackId) === String(track.id) && Boolean(player.src);
+  currentTrackId = track.id;
+  if (!sameTrack) player.src = track.url;
   $("#now-playing").textContent = track.title;
   renderPlayerMenus();
   updateMediaSession(track);
   try { await player.play(); } catch { toast("Tap play to start this song."); }
+  updatePlayerPresentation();
+  saveMusicPlayerState();
+}
+
+async function toggleTrackPlayback(id, options = {}) {
+  const player = $("#audio-player");
+  if (String(currentTrackId) !== String(id) || !player.src) return playTrack(id, options);
+  if (player.paused) {
+    try { await player.play(); } catch { toast("Tap play to resume this song."); }
+  } else {
+    player.pause();
+  }
   updatePlayerPresentation();
   saveMusicPlayerState();
 }
@@ -1272,7 +1352,7 @@ $("#track-list")?.addEventListener("click", async (event) => {
   }
   if (save) return saveTrackEdits(save);
   if (cancel) { editingTrackId = null; return renderMusicRows(); }
-  if (play) playTrack(play.dataset.playTrack, { playlistId: currentPlaylist === "none" ? "all" : currentPlaylist });
+  if (play) toggleTrackPlayback(play.dataset.playTrack, { playlistId: currentPlaylist === "none" ? "all" : currentPlaylist });
   if (remove && await ensureCloudAdmin() && confirm("Delete this song from the cloud library?")) {
     const track = tracks.find((item) => item.id === remove.dataset.deleteTrack);
     if (!track) return;
@@ -1379,6 +1459,7 @@ $("#audio-player").addEventListener("play", () => { updatePlayerPresentation(); 
 $("#audio-player").addEventListener("pause", () => { updatePlayerPresentation(); saveMusicPlayerState(); });
 $("#audio-player").addEventListener("ended", () => stepTrack(1));
 $("#audio-player").addEventListener("loadedmetadata", updateMediaPosition);
+$("#audio-player").addEventListener("durationchange", updateMediaPosition);
 $("#audio-player").addEventListener("timeupdate", updateMediaPosition);
 window.addEventListener("pagehide", saveMusicPlayerState);
 

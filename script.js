@@ -36,6 +36,7 @@ let musicSortColumn = "song";
 let musicSortDirection = "asc";
 let editingTrackId = null;
 let musicCloudError = "";
+let playerPlaylist = "all";
 let currentTrackId = null;
 let playerStateRestored = false;
 const selectedTrackIds = new Set();
@@ -52,6 +53,27 @@ let shoppingStore = "all";
 let shoppingCategory = "all";
 let activeDentistryQuestions = [];
 let activeDentistryTestMode = "quiz";
+
+function ensureMusicPlayerMenu() {
+  const bar = $("#music-bar");
+  if (!bar || $("#music-queue-toggle")) return;
+  const toggle = document.createElement("button");
+  toggle.id = "music-queue-toggle";
+  toggle.className = "music-queue-toggle";
+  toggle.type = "button";
+  toggle.setAttribute("aria-label", "Choose a playlist or song");
+  toggle.setAttribute("aria-expanded", "false");
+  toggle.setAttribute("aria-controls", "music-queue-menu");
+  toggle.textContent = "♫";
+  const menu = document.createElement("div");
+  menu.id = "music-queue-menu";
+  menu.className = "music-player-menu";
+  menu.hidden = true;
+  menu.innerHTML = '<label for="player-playlist-select">Play a playlist</label><select id="player-playlist-select"><option value="all">All songs</option></select><label for="player-track-select">Choose a song</label><select id="player-track-select"><option value="">No music added yet</option></select>';
+  bar.append(toggle, menu);
+}
+
+ensureMusicPlayerMenu();
 
 function read(key) {
   try { return JSON.parse(localStorage.getItem(key)) || []; } catch { return []; }
@@ -800,6 +822,7 @@ async function renderMusic() {
     playlists = [];
     musicCloudError = error.message;
   }
+  renderPlayerMenus();
   if (!$("#track-list")) return restoreMusicPlayerState();
   const artists = [...new Set(tracks.map(trackArtist))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
   [...currentArtists].forEach((artist) => { if (!artists.includes(artist)) currentArtists.delete(artist); });
@@ -888,23 +911,46 @@ function readMusicPlayerState() {
   try { return JSON.parse(sessionStorage.getItem(MUSIC_PLAYER_STATE_KEY)) || null; } catch { return null; }
 }
 
+function playerQueue() {
+  return playerPlaylist === "all" ? tracks : tracks.filter((track) => String(track.playlist_id) === playerPlaylist);
+}
+
+function renderPlayerMenus() {
+  const playlistSelect = $("#player-playlist-select");
+  const songSelect = $("#player-track-select");
+  if (!playlistSelect || !songSelect) return;
+  if (playerPlaylist !== "all" && !playlists.some((playlist) => String(playlist.id) === playerPlaylist)) playerPlaylist = "all";
+  playlistSelect.innerHTML = `<option value="all">All songs (${tracks.length})</option>${playlists.map((playlist) => {
+    const count = tracks.filter((track) => String(track.playlist_id) === String(playlist.id)).length;
+    return `<option value="${playlist.id}">${escapeHtml(playlist.name)} (${count})</option>`;
+  }).join("")}`;
+  playlistSelect.value = playerPlaylist;
+  const queue = playerQueue();
+  songSelect.innerHTML = queue.length ? '<option value="">Choose a song</option>' + queue.map((track) => `<option value="${track.id}">${escapeHtml(track.title)}</option>`).join("") : '<option value="">No songs in this playlist</option>';
+  if (currentTrackId && queue.some((track) => String(track.id) === String(currentTrackId))) songSelect.value = String(currentTrackId);
+}
+
 function saveMusicPlayerState() {
   const track = tracks.find((item) => String(item.id) === String(currentTrackId));
-  if (!track) return;
   const player = $("#audio-player");
-  sessionStorage.setItem(MUSIC_PLAYER_STATE_KEY, JSON.stringify({ trackId: String(track.id), title: track.title, currentTime: Number(player.currentTime || 0), playing: !player.paused }));
+  sessionStorage.setItem(MUSIC_PLAYER_STATE_KEY, JSON.stringify({ playlistId: playerPlaylist, trackId: track ? String(track.id) : null, title: track?.title || $("#now-playing").textContent, currentTime: track ? Number(player.currentTime || 0) : 0, playing: Boolean(track && !player.paused) }));
 }
 
 function restoreMusicPlayerState() {
   if (playerStateRestored) return;
   playerStateRestored = true;
   const saved = readMusicPlayerState();
+  playerPlaylist = saved?.playlistId || "all";
+  if (playerPlaylist !== "all" && !playlists.some((playlist) => String(playlist.id) === playerPlaylist)) playerPlaylist = "all";
   const track = tracks.find((item) => String(item.id) === String(saved?.trackId));
+  if (track && !playerQueue().some((item) => String(item.id) === String(track.id))) playerPlaylist = "all";
+  renderPlayerMenus();
   if (!track) return;
   currentTrackId = String(track.id);
   const player = $("#audio-player");
   player.src = track.url;
   $("#now-playing").textContent = track.title;
+  $("#player-track-select").value = String(track.id);
   if (Number(saved.currentTime) > 0) {
     const seek = () => { player.currentTime = Math.min(Number(saved.currentTime), Number.isFinite(player.duration) ? player.duration : Number(saved.currentTime)); };
     if (player.readyState >= 1) seek(); else player.addEventListener("loadedmetadata", seek, { once: true });
@@ -949,14 +995,33 @@ async function deleteSelectedTracks() {
   toast(`${selected.length} song${selected.length === 1 ? "" : "s"} deleted.`);
 }
 
-async function playTrack(id) {
+async function playTrack(id, options = {}) {
   const track = tracks.find((item) => item.id === String(id));
   if (!track) return;
+  if (options.playlistId && (options.playlistId === "all" || playlists.some((playlist) => String(playlist.id) === String(options.playlistId)))) playerPlaylist = String(options.playlistId);
+  if (!playerQueue().some((item) => String(item.id) === String(track.id))) playerPlaylist = "all";
   currentTrackId = track.id;
   const player = $("#audio-player");
   player.src = track.url;
   $("#now-playing").textContent = track.title;
+  renderPlayerMenus();
   try { await player.play(); } catch { toast("Tap play to start this song."); }
+  saveMusicPlayerState();
+}
+
+async function playSelectedPlaylist(id) {
+  playerPlaylist = id === "all" || playlists.some((playlist) => String(playlist.id) === String(id)) ? String(id) : "all";
+  currentTrackId = null;
+  renderPlayerMenus();
+  const queue = playerQueue();
+  if (queue.length) return playTrack(queue[0].id);
+  const player = $("#audio-player");
+  player.pause();
+  player.removeAttribute("src");
+  player.load();
+  const playlist = playlists.find((item) => String(item.id) === playerPlaylist);
+  $("#now-playing").textContent = playlist ? `${playlist.name} is empty` : "No music added yet";
+  $("#toggle-track").textContent = "▶";
   saveMusicPlayerState();
 }
 
@@ -1042,10 +1107,10 @@ async function ensureCloudAdmin() {
 }
 
 function stepTrack(direction) {
-  const pool = visibleTracks.length ? visibleTracks : tracks;
+  const pool = playerQueue();
   if (!pool.length) return;
-  const index = Math.max(0, pool.findIndex((track) => track.id === currentTrackId));
-  playTrack(pool[(index + direction + pool.length) % pool.length].id);
+  const index = pool.findIndex((track) => track.id === currentTrackId);
+  playTrack(pool[index < 0 ? 0 : (index + direction + pool.length) % pool.length].id);
 }
 
 function bindDropZone(zoneSelector, inputSelector, chooseSelector, handler) {
@@ -1089,7 +1154,7 @@ $("#track-list")?.addEventListener("click", async (event) => {
   }
   if (save) return saveTrackEdits(save);
   if (cancel) { editingTrackId = null; return renderMusicRows(); }
-  if (play) playTrack(play.dataset.playTrack);
+  if (play) playTrack(play.dataset.playTrack, { playlistId: currentPlaylist === "none" ? "all" : currentPlaylist });
   if (remove && await ensureCloudAdmin() && confirm("Delete this song from the cloud library?")) {
     const track = tracks.find((item) => item.id === remove.dataset.deleteTrack);
     if (!track) return;
@@ -1168,14 +1233,22 @@ document.addEventListener("click", (event) => {
   if (pdfButton) openDentistryPdf(pdfButton.dataset.openDentistryPdf);
   if (retryButton) startDentistryTest(Number(retryButton.dataset.dentistryRetry));
   if (!$("#quick-ai-popover").hidden && !event.target.closest("#quick-ai-popover") && !event.target.closest("#quick-ai-toggle")) toggleQuickAi(false);
+  if (!$("#music-queue-menu").hidden && !event.target.closest("#music-queue-menu") && !event.target.closest("#music-queue-toggle")) {
+    $("#music-queue-menu").hidden = true;
+    $("#music-queue-toggle").setAttribute("aria-expanded", "false");
+  }
 });
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   if (!$("#quick-ai-popover").hidden) toggleQuickAi(false);
+  else if (!$("#music-queue-menu").hidden) { $("#music-queue-menu").hidden = true; $("#music-queue-toggle").setAttribute("aria-expanded", "false"); }
   else if (musicLibraryOpen) closeMusicLibrary();
   if ($("#dentistry-pdf-drawer") && !$("#dentistry-pdf-drawer").hidden) closeDentistryPdf();
 });
-$("#toggle-track").addEventListener("click", () => { const player = $("#audio-player"); if (!player.src && tracks.length) return playTrack(tracks[0].id); if (player.paused) player.play(); else player.pause(); });
+$("#music-queue-toggle").addEventListener("click", () => { const menu = $("#music-queue-menu"); menu.hidden = !menu.hidden; $("#music-queue-toggle").setAttribute("aria-expanded", String(!menu.hidden)); });
+$("#player-playlist-select").addEventListener("change", (event) => playSelectedPlaylist(event.target.value));
+$("#player-track-select").addEventListener("change", (event) => { if (event.target.value) playTrack(event.target.value); });
+$("#toggle-track").addEventListener("click", () => { const player = $("#audio-player"); if (!player.src && playerQueue().length) return playTrack(playerQueue()[0].id); if (player.paused) player.play(); else player.pause(); });
 $("#previous-track").addEventListener("click", () => stepTrack(-1));
 $("#next-track").addEventListener("click", () => stepTrack(1));
 $("#audio-player").addEventListener("play", () => { $("#toggle-track").textContent = "❚❚"; saveMusicPlayerState(); });

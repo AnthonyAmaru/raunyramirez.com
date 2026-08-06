@@ -131,6 +131,37 @@ function normalizePrimaryNavigation() {
   nav.innerHTML = PRIMARY_NAV_ITEMS.map(([href, label]) => `<a href="${href}"${currentPage === href ? ' aria-current="page"' : ""}>${label}</a>`).join("");
 }
 
+function installFooterControls() {
+  let footer = $("body > footer");
+  if (!footer) {
+    footer = document.createElement("footer");
+    document.body.append(footer);
+  }
+  let controls = $(".footer-controls", footer);
+  if (!controls) {
+    controls = document.createElement("div");
+    controls.className = "footer-controls";
+    footer.append(controls);
+  }
+  let nav = $(".footer-nav", controls);
+  if (!nav) {
+    nav = document.createElement("nav");
+    nav.className = "footer-nav";
+    nav.setAttribute("aria-label", "Footer navigation");
+    $("#primary-nav")?.querySelectorAll("a").forEach((link) => nav.append(link.cloneNode(true)));
+    controls.append(nav);
+  }
+  let cloudStatus = $("#cloud-status");
+  if (!cloudStatus) {
+    cloudStatus = document.createElement("button");
+    cloudStatus.id = "cloud-status";
+    cloudStatus.className = "cloud-status";
+    cloudStatus.type = "button";
+    cloudStatus.innerHTML = "<span></span>Cloud locked";
+  }
+  controls.append(cloudStatus);
+}
+
 function updateCloudStatus() {
   const status = $("#cloud-status");
   if (!status) return;
@@ -1211,6 +1242,7 @@ function bindDropZone(zoneSelector, inputSelector, chooseSelector, handler) {
 installQuickAi();
 installMusicLayoutParity();
 normalizePrimaryNavigation();
+installFooterControls();
 $("#menu-toggle").addEventListener("click", () => { const nav = $("#primary-nav"); nav.classList.toggle("open"); $("#menu-toggle").setAttribute("aria-expanded", String(nav.classList.contains("open"))); });
 $$('#primary-nav a').forEach((link) => link.addEventListener("click", () => $("#primary-nav").classList.remove("open")));
 $("#theme-toggle").addEventListener("click", () => applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));

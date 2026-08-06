@@ -41,6 +41,7 @@ let currentTrackId = null;
 let playerStateRestored = false;
 let shuffleEnabled = false;
 let shuffledTrackIds = [];
+let musicNavigationHandoff = false;
 const selectedTrackIds = new Set();
 let cloudAdminPassword = null;
 let artItems = [];
@@ -159,6 +160,10 @@ function trackArtist(track) {
   if (stored) return stored;
   const base = String(track?.file_name || track?.title || "").replace(/\.[^.]+$/, "").replace(/\s*\[[\w-]{6,}\]\s*$/, "").trim();
   return base.match(/^(.+?)\s[-–—]\s.+$/)?.[1]?.trim() || "Unknown artist";
+}
+function playerTrackLabel(track) {
+  const artist = trackArtist(track);
+  return artist && artist !== "Unknown artist" ? `${track.title} · ${artist}` : track.title;
 }
 function trackPlaylistName(track) { return playlists.find((playlist) => String(playlist.id) === String(track.playlist_id))?.name || "No playlist"; }
 function updateMusicSortControls() {
@@ -1052,10 +1057,12 @@ function renderPlayerMenus() {
   $("#music-shuffle-toggle")?.setAttribute("aria-pressed", String(shuffleEnabled));
 }
 
-function saveMusicPlayerState() {
+function saveMusicPlayerState(options = {}) {
   const track = tracks.find((item) => String(item.id) === String(currentTrackId));
   const player = $("#audio-player");
-  sessionStorage.setItem(MUSIC_PLAYER_STATE_KEY, JSON.stringify({ playlistId: playerPlaylist, trackId: track ? String(track.id) : null, title: track?.title || $("#now-playing").textContent, currentTime: track ? Number(player.currentTime || 0) : 0, playing: Boolean(track && !player.paused), shuffle: shuffleEnabled }));
+  const previous = readMusicPlayerState();
+  const playing = Boolean(track && (options.keepPlaying ? (!player.paused || previous?.playing) : !player.paused));
+  sessionStorage.setItem(MUSIC_PLAYER_STATE_KEY, JSON.stringify({ playlistId: playerPlaylist, trackId: track ? String(track.id) : null, title: track?.title || $("#now-playing").textContent, currentTime: track ? Number(player.currentTime || 0) : 0, playing, shuffle: shuffleEnabled }));
 }
 
 function restoreMusicPlayerState() {
@@ -1076,7 +1083,7 @@ function restoreMusicPlayerState() {
   currentTrackId = String(track.id);
   const player = $("#audio-player");
   player.src = track.url;
-  $("#now-playing").textContent = track.title;
+  $("#now-playing").textContent = playerTrackLabel(track);
   $("#player-track-select").value = String(track.id);
   if (Number(saved.currentTime) > 0) {
     const seek = () => { player.currentTime = Math.min(Number(saved.currentTime), Number.isFinite(player.duration) ? player.duration : Number(saved.currentTime)); };
@@ -1185,7 +1192,7 @@ async function playTrack(id, options = {}) {
   const sameTrack = String(currentTrackId) === String(track.id) && Boolean(player.src);
   currentTrackId = track.id;
   if (!sameTrack) player.src = track.url;
-  $("#now-playing").textContent = track.title;
+  $("#now-playing").textContent = playerTrackLabel(track);
   renderPlayerMenus();
   updateMediaSession(track);
   try { await player.play(); } catch { toast("Tap play to start this song."); }
@@ -1259,7 +1266,7 @@ async function saveTrackEdits(button) {
     await musicCloud.updateTrackMetadata(track, title, artist);
     editingTrackId = null;
     await renderMusic();
-    if (String(currentTrackId) === String(track.id)) $("#now-playing").textContent = title;
+    if (String(currentTrackId) === String(track.id)) $("#now-playing").textContent = playerTrackLabel(tracks.find((item) => String(item.id) === String(track.id)) || track);
     toast("Song details saved to the cloud.");
   } catch (error) {
     button.disabled = false;
@@ -1456,12 +1463,24 @@ $("#toggle-track").addEventListener("click", () => { const player = $("#audio-pl
 $("#previous-track").addEventListener("click", () => stepTrack(-1));
 $("#next-track").addEventListener("click", () => stepTrack(1));
 $("#audio-player").addEventListener("play", () => { updatePlayerPresentation(); saveMusicPlayerState(); });
-$("#audio-player").addEventListener("pause", () => { updatePlayerPresentation(); saveMusicPlayerState(); });
+$("#audio-player").addEventListener("pause", () => { updatePlayerPresentation(); if (!musicNavigationHandoff) saveMusicPlayerState(); });
 $("#audio-player").addEventListener("ended", () => stepTrack(1));
 $("#audio-player").addEventListener("loadedmetadata", updateMediaPosition);
 $("#audio-player").addEventListener("durationchange", updateMediaPosition);
 $("#audio-player").addEventListener("timeupdate", updateMediaPosition);
-window.addEventListener("pagehide", saveMusicPlayerState);
+document.addEventListener("click", (event) => {
+  const link = event.target.closest("a[href]");
+  if (!link || link.target || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  const destination = new URL(link.href, location.href);
+  if (destination.origin !== location.origin || !currentTrackId || $("#audio-player").paused) return;
+  musicNavigationHandoff = true;
+  saveMusicPlayerState({ keepPlaying: true });
+}, true);
+window.addEventListener("beforeunload", () => {
+  musicNavigationHandoff = Boolean(currentTrackId && !$("#audio-player").paused) || musicNavigationHandoff;
+  saveMusicPlayerState({ keepPlaying: musicNavigationHandoff });
+});
+window.addEventListener("pagehide", () => saveMusicPlayerState({ keepPlaying: musicNavigationHandoff }));
 
 bindDropZone("#art-drop-zone", "#art-file-input", "#choose-art", addArtFiles);
 bindDropZone("#music-drop-zone", "#music-file-input", "#choose-music", addMusicFiles);
